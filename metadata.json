@@ -1,0 +1,6 @@
+{
+  "name": "Inkwell AI Book Generator",
+  "description": "A standalone AI book generator that creates full-length books with cover art, structured chapters, and export options.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
