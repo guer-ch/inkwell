@@ -24,7 +24,6 @@ const LANGUAGES = [
 ];
 
 const TEXT_MODELS = [
-  { id: 'gemini', name: 'Gemini 3 Flash' },
   { id: 'grok', name: 'Grok 4.20' },
   { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
   { id: 'openai-large', name: 'GPT-5.4' },
@@ -44,7 +43,7 @@ export function BookForm({ onGenerate }: BookFormProps) {
   const [description, setDescription] = useState('');
   const [genre, setGenre] = useState(GENRES[0]);
   const [language, setLanguage] = useState(LANGUAGES[0]);
-  const [modelText, setModelText] = useState(TEXT_MODELS[0].id);
+  const [modelText, setModelText] = useState(TEXT_MODELS[0].id); // defaults to 'grok'
   const [modelImage, setModelImage] = useState(IMAGE_MODELS[0].id);
 
   const handleSubmit = (e: React.FormEvent) => {
