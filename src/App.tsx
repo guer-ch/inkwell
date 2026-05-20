@@ -24,6 +24,9 @@ export default function App() {
     modelImage: string;
   } | null>(null);
 
+  // Effective key: user-connected Pollen takes priority, otherwise fall back to the public key
+  const effectiveApiKey = pollinationsKey || POLLINATIONS_PUBLIC_KEY;
+
   // Load books and handle Pollinations redirect
   useEffect(() => {
     const saved = localStorage.getItem('inkwell_books');
@@ -35,10 +38,11 @@ export default function App() {
       }
     }
 
-    // Handle Pollinations BYOP redirect
+    // Handle Pollinations BYOP redirect (api_key=... in URL fragment)
     const hash = window.location.hash;
-    if (hash.includes('pollen_token=')) {
-      const token = new URLSearchParams(hash.replace('#', '?')).get('pollen_token');
+    if (hash.includes('api_key=') || hash.includes('pollen_token=')) {
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const token = params.get('api_key') || params.get('pollen_token');
       if (token) {
         setPollinationsKey(token);
         localStorage.setItem('pollinations_key', token);
@@ -53,10 +57,12 @@ export default function App() {
       alert("Please hardcode your actual POLLINATIONS_PUBLIC_KEY in src/App.tsx.");
       return;
     }
-    
-    const redirectUri = window.location.origin;
-    const authUrl = `https://enter.pollinations.ai/authorize?pollen_key=${POLLINATIONS_PUBLIC_KEY}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = authUrl;
+
+    const params = new URLSearchParams({
+      client_id: POLLINATIONS_PUBLIC_KEY,
+      redirect_uri: window.location.origin
+    });
+    window.location.href = `https://enter.pollinations.ai/authorize?${params}`;
   };
 
   // Save books to localStorage
@@ -225,7 +231,7 @@ export default function App() {
         {stage === 'generating' && formData && (
           <GeneratingStage 
             {...formData} 
-            apiKey={pollinationsKey}
+            apiKey={effectiveApiKey}
             onComplete={handleGenerationComplete} 
           />
         )}
@@ -233,7 +239,7 @@ export default function App() {
         {stage === 'reader' && currentBook && (
           <BookReader 
             book={currentBook} 
-            apiKey={pollinationsKey}
+            apiKey={effectiveApiKey}
             onBack={() => setStage('setup')}
             onUpdateBook={updateBook}
           />
