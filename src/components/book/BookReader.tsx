@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { Book, Chapter } from '@/src/types';
 import { cn } from '@/src/lib/utils';
-import axios from 'axios';
+import { generateChapter } from '@/src/lib/pollinations';
+import { exportBookAsPDF, exportBookAsMarkdown } from '@/src/lib/export';
 
 interface BookReaderProps {
   book: Book;
@@ -23,36 +24,15 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
 
   const handleExportPDF = async () => {
     try {
-      const response = await axios.post('/api/export/pdf', {
-        title: book.title,
-        chapters: book.chapters,
-        coverUrl: book.coverUrl
-      }, { responseType: 'blob' });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${book.title}.pdf`);
-      document.body.appendChild(link);
-      link.click();
+      await exportBookAsPDF(book);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleExportMarkdown = async () => {
+  const handleExportMarkdown = () => {
     try {
-      const response = await axios.post('/api/export/markdown', {
-        title: book.title,
-        chapters: book.chapters
-      }, { responseType: 'blob' });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${book.title}.md`);
-      document.body.appendChild(link);
-      link.click();
+      exportBookAsMarkdown(book);
     } catch (err) {
       console.error(err);
     }
@@ -64,35 +44,19 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
     setIsRegenerating(true);
 
     try {
-      const prompt = `
-        Refine the following chapter of a ${book.genre} book in ${book.language}.
-        Instruction: ${instr}
-        
-        Original Content:
-        ${ch.content}
-        
-        Provide only the new chapter content.
-      `;
-
-      // Using the generic generateText endpoint indirectly? 
-      // Actually let's just make a small endpoint or use a direct call if we could.
-      // For simplicity, let's use a proxy if needed, but here I'll just reuse generate-chapter with special flags or just refine.
-      // Let's assume generate-chapter can handle it if we passed it in, but I'll call a dedicated-ish prompt.
-      
-      // For now, I'll just use the text pollinations directly via server (safe way)
-      const res = await axios.post('/api/generate-chapter', {
-        book_description: book.description,
+      const result = await generateChapter({
+        bookDescription: book.description,
         genre: book.genre,
         language: book.language,
-        chapter_number: ch.number,
-        chapter_title: ch.title,
-        chapter_summary: `REFINEMENT: ${instr}. Context: ${ch.summary}`,
+        chapterNumber: ch.number,
+        chapterTitle: ch.title,
+        chapterSummary: `REFINEMENT: ${instr}. Context: ${ch.summary}`,
         model: book.modelText,
         apiKey
       });
 
       const newChapters = [...book.chapters];
-      newChapters[chIndex] = { ...ch, content: res.data.content };
+      newChapters[chIndex] = { ...ch, content: result.content };
       onUpdateBook({ ...book, chapters: newChapters });
     } catch (err) {
       console.error(err);

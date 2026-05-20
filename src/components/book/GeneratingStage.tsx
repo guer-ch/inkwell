@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, Sparkles, Image as ImageIcon, BookOpen } from 'lucide-react';
-import axios from 'axios';
 import { Chapter, Book } from '@/src/types';
+import { generateOutline, generateChapter, generateCover } from '@/src/lib/pollinations';
 
 interface GeneratingStageProps {
   description: string;
@@ -32,18 +32,18 @@ export function GeneratingStage({
     try {
       // 1. Generate Outline
       setError(null);
-      const outlineRes = await axios.post('/api/generate-outline', { 
-        description, genre, language, model: modelText, apiKey 
+      const outline = await generateOutline({
+        description, genre, language, model: modelText, apiKey
       });
-      setTitle(outlineRes.data.title);
-      setChapters(outlineRes.data.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false })));
+      setTitle(outline.title);
+      setChapters(outline.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false })));
       setStep('cover');
 
       // 2. Generate Cover
-      const coverRes = await axios.post('/api/generate-cover', { 
-        title: outlineRes.data.title, genre, description, model: modelImage, apiKey 
+      const cover = await generateCover({
+        title: outline.title, genre, description, model: modelImage, apiKey
       });
-      setCoverUrl(coverRes.data.imageUrl);
+      setCoverUrl(cover.imageUrl);
       setStep('chapters');
       setCurrentChapterIndex(0);
     } catch (err) {
@@ -84,22 +84,22 @@ export function GeneratingStage({
 
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { ...c, isGenerating: true } : c));
 
-      const res = await axios.post('/api/generate-chapter', {
-        book_description: description,
+      const result = await generateChapter({
+        bookDescription: description,
         genre,
         language,
-        chapter_number: ch.number,
-        chapter_title: ch.title,
-        chapter_summary: ch.summary,
-        previous_chapters_summaries: prevSummaries,
-        previous_chapter_ending: prevChapterEnd,
+        chapterNumber: ch.number,
+        chapterTitle: ch.title,
+        chapterSummary: ch.summary,
+        previousChaptersSummaries: prevSummaries,
+        previousChapterEnding: prevChapterEnd,
         model: modelText,
         apiKey
       });
 
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { 
         ...c, 
-        content: res.data.content, 
+        content: result.content, 
         isGenerating: false 
       } : c));
 
