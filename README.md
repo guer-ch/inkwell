@@ -23,8 +23,9 @@ Inkwell AI is a full-stack web app that generates complete books from a short de
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS
-- **AI:** [Pollinations.ai](https://pollinations.ai) (text & image, called directly from browser)
-- **PDF export:** jsPDF (client-side)
+- **Backend:** Express.js + TypeScript
+- **AI:** [Pollinations.ai](https://pollinations.ai) (text & image)
+- **PDF export:** jsPDF
 
 ## Run Locally
 
@@ -35,12 +36,17 @@ Inkwell AI is a full-stack web app that generates complete books from a short de
    npm install
    ```
 
-2. Start the development server:
+2. (Optional) Copy `.env.example` to `.env` and set your `APP_URL`:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Start the development server:
    ```bash
    npm run dev
    ```
 
-3. Open [http://localhost:5173](http://localhost:5173) in your browser.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Connecting Pollen (Optional)
 
