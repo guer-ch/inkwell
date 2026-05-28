@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 // Hardcode your Pollinations public key here
-const POLLINATIONS_PUBLIC_KEY: string = "pk_6GDWiLcGmNyDe3ME";
+const POLLINATIONS_PUBLIC_KEY: string = "pk_kCibYF3NJ5tObi5N";
 
 export default function App() {
   const [stage, setStage] = useState<AppStage>('setup');
