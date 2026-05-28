@@ -24,17 +24,19 @@ const LANGUAGES = [
 ];
 
 const TEXT_MODELS = [
-  { id: 'grok', name: 'Grok 4.20' },
+  { id: 'grok4.3', name: 'Grok 4.3' },
   { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
   { id: 'openai-large', name: 'GPT-5.4' },
   { id: 'kimi-k2.6', name: 'Moonshot Kimi K2.6' },
-  { id: 'claude', name: 'Claude Sonnet 4.6' }
+  { id: 'claude', name: 'Claude Sonnet 4.6' },
+  { id: 'gpt-5.5', name: 'GPT-5.5' }
 ];
 
 const IMAGE_MODELS = [
-  { id: 'klein', name: 'FLUX.2 Klein 4B' },
+  { id: 'zimage', name: 'z-image turbo' },
   { id: 'grok-imagine', name: 'Grok Imagine' },
   { id: 'gptimage-large', name: 'GPT Image 1.5' },
+  { id: 'qwen-image', name: 'Qwen image plus' },
   { id: 'gpt-image-2', name: 'GPT Image 2' },
   { id: 'nanobanana-2', name: 'NanoBanana 2' }
 ];
