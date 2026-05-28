@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, CheckCircle2, Sparkles, Image as ImageIcon, BookOpen } from 'lucide-react';
+import { Loader2, CheckCircle2, Sparkles, Image as ImageIcon, BookOpen, RefreshCw } from 'lucide-react';
 import { Chapter, Book } from '@/src/types';
 import { generateOutline, generateChapter, generateCover } from '@/src/lib/pollinations';
 
@@ -24,14 +24,44 @@ export function GeneratingStage({
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
 
+  // Track the currently pending auto-retry timer and the action to retry,
+  // so the user can trigger an immediate retry via the button.
+  const retryTimerRef = useRef<number | null>(null);
+  const retryActionRef = useRef<(() => void) | null>(null);
+
+  const clearScheduledRetry = () => {
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  };
+
+  const scheduleRetry = (fn: () => void, delayMs = 3000) => {
+    clearScheduledRetry();
+    retryActionRef.current = fn;
+    retryTimerRef.current = window.setTimeout(() => {
+      retryTimerRef.current = null;
+      fn();
+    }, delayMs);
+  };
+
+  const handleManualRetry = () => {
+    const fn = retryActionRef.current;
+    if (!fn) return;
+    clearScheduledRetry();
+    setError(null);
+    fn();
+  };
+
   useEffect(() => {
     generateBook();
+    return () => clearScheduledRetry();
   }, []);
 
   const generateBook = async () => {
     try {
-      // 1. Generate Outline
       setError(null);
+      // 1. Generate Outline
       const outline = await generateOutline({
         description, genre, language, model: modelText, apiKey
       });
@@ -47,8 +77,9 @@ export function GeneratingStage({
       setStep('chapters');
       setCurrentChapterIndex(0);
     } catch (err) {
-      setError('Failed to start book generation. Please try again.');
       console.error(err);
+      setError('Failed to start book generation. Retrying in 3 seconds...');
+      scheduleRetry(generateBook);
     }
   };
 
@@ -74,12 +105,13 @@ export function GeneratingStage({
 
   const generateNextChapter = async () => {
     try {
+      setError(null);
       const ch = chapters[currentChapterIndex];
       const prevSummaries = chapters
         .slice(Math.max(0, currentChapterIndex - 2), currentChapterIndex)
         .map(c => `Chapter ${c.number}: ${c.summary}`)
         .join('\n');
-      
+
       const prevChapterEnd = currentChapterIndex > 0 ? chapters[currentChapterIndex-1].content.slice(-500) : '';
 
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { ...c, isGenerating: true } : c));
@@ -105,8 +137,9 @@ export function GeneratingStage({
 
       setCurrentChapterIndex(prev => prev + 1);
     } catch (err) {
-      setError(`Failed to generate Chapter ${currentChapterIndex + 1}. Retrying...`);
-      setTimeout(generateNextChapter, 3000);
+      console.error(err);
+      setError(`Failed to generate Chapter ${currentChapterIndex + 1}. Retrying in 3 seconds...`);
+      scheduleRetry(generateNextChapter);
     }
   };
 
@@ -133,8 +166,15 @@ export function GeneratingStage({
           className="space-y-6"
         >
           {error && (
-            <div className="p-4 bg-red-950/30 border border-red-900 rounded-xl text-red-400 text-sm mb-6">
-              {error}
+            <div className="p-4 bg-red-950/30 border border-red-900 rounded-xl text-red-400 text-sm mb-6 flex items-center justify-between gap-4">
+              <span className="text-left">{error}</span>
+              <button
+                onClick={handleManualRetry}
+                className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 rounded-lg text-xs font-medium transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry now
+              </button>
             </div>
           )}
 
