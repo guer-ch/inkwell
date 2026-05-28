@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, Sparkles, Image as ImageIcon, BookOpen, RefreshCw } from 'lucide-react';
 import { Chapter, Book } from '@/src/types';
@@ -14,6 +14,9 @@ interface GeneratingStageProps {
   onComplete: (book: Book) => void;
 }
 
+// Backoff schedule in seconds: 1, 3, 15, 60, 300, then stays at 300
+const BACKOFF_SCHEDULE = [1, 3, 15, 60, 300];
+
 export function GeneratingStage({ 
   description, genre, language, modelText, modelImage, apiKey, onComplete 
 }: GeneratingStageProps) {
@@ -23,45 +26,71 @@ export function GeneratingStage({
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
-  // Track the currently pending auto-retry timer and the action to retry,
-  // so the user can trigger an immediate retry via the button.
   const retryTimerRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
   const retryActionRef = useRef<(() => void) | null>(null);
+  const retryAttemptRef = useRef<number>(0);
 
-  const clearScheduledRetry = () => {
+  const clearAll = () => {
     if (retryTimerRef.current !== null) {
       window.clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
+    if (countdownIntervalRef.current !== null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
   };
 
-  const scheduleRetry = (fn: () => void, delayMs = 3000) => {
-    clearScheduledRetry();
+  const scheduleRetry = (fn: () => void) => {
+    clearAll();
     retryActionRef.current = fn;
+
+    const attempt = retryAttemptRef.current;
+    const delaySec = BACKOFF_SCHEDULE[Math.min(attempt, BACKOFF_SCHEDULE.length - 1)];
+    retryAttemptRef.current = attempt + 1;
+
+    // Start countdown display
+    setCountdown(delaySec);
+    let remaining = delaySec;
+    countdownIntervalRef.current = window.setInterval(() => {
+      remaining -= 1;
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        window.clearInterval(countdownIntervalRef.current!);
+        countdownIntervalRef.current = null;
+      }
+    }, 1000);
+
     retryTimerRef.current = window.setTimeout(() => {
       retryTimerRef.current = null;
+      setCountdown(null);
       fn();
-    }, delayMs);
+    }, delaySec * 1000);
   };
 
   const handleManualRetry = () => {
     const fn = retryActionRef.current;
     if (!fn) return;
-    clearScheduledRetry();
+    clearAll();
+    setCountdown(null);
     setError(null);
     fn();
   };
 
   useEffect(() => {
     generateBook();
-    return () => clearScheduledRetry();
+    return () => clearAll();
   }, []);
 
   const generateBook = async () => {
     try {
       setError(null);
-      // 1. Generate Outline
+      setCountdown(null);
+      retryAttemptRef.current = 0;
+
       const outline = await generateOutline({
         description, genre, language, model: modelText, apiKey
       });
@@ -69,7 +98,6 @@ export function GeneratingStage({
       setChapters(outline.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false })));
       setStep('cover');
 
-      // 2. Generate Cover
       const cover = await generateCover({
         title: outline.title, genre, description, model: modelImage, apiKey
       });
@@ -78,7 +106,7 @@ export function GeneratingStage({
       setCurrentChapterIndex(0);
     } catch (err) {
       console.error(err);
-      setError('Failed to start book generation. Retrying in 3 seconds...');
+      setError('Failed to start book generation.');
       scheduleRetry(generateBook);
     }
   };
@@ -106,13 +134,16 @@ export function GeneratingStage({
   const generateNextChapter = async () => {
     try {
       setError(null);
+      setCountdown(null);
+
       const ch = chapters[currentChapterIndex];
       const prevSummaries = chapters
         .slice(Math.max(0, currentChapterIndex - 2), currentChapterIndex)
         .map(c => `Chapter ${c.number}: ${c.summary}`)
         .join('\n');
-
-      const prevChapterEnd = currentChapterIndex > 0 ? chapters[currentChapterIndex-1].content.slice(-500) : '';
+      const prevChapterEnd = currentChapterIndex > 0
+        ? chapters[currentChapterIndex - 1].content.slice(-500)
+        : '';
 
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { ...c, isGenerating: true } : c));
 
@@ -129,28 +160,32 @@ export function GeneratingStage({
         apiKey
       });
 
-      setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { 
-        ...c, 
-        content: result.content, 
-        isGenerating: false 
-      } : c));
-
+      retryAttemptRef.current = 0; // reset backoff on success
+      setChapters(prev => prev.map((c, i) => i === currentChapterIndex
+        ? { ...c, content: result.content, isGenerating: false }
+        : c
+      ));
       setCurrentChapterIndex(prev => prev + 1);
     } catch (err) {
       console.error(err);
-      setError(`Failed to generate Chapter ${currentChapterIndex + 1}. Retrying in 3 seconds...`);
+      setError(`Failed to generate Chapter ${currentChapterIndex + 1}.`);
       scheduleRetry(generateNextChapter);
     }
   };
 
-  const progress = chapters.length > 0 
-    ? ((currentChapterIndex + 1) / (chapters.length + 1)) * 100 
+  const progress = chapters.length > 0
+    ? ((currentChapterIndex + 1) / (chapters.length + 1)) * 100
     : 0;
+
+  const formatCountdown = (sec: number) => {
+    if (sec >= 60) return `${Math.ceil(sec / 60)}m`;
+    return `${sec}s`;
+  };
 
   return (
     <div className="max-w-xl mx-auto py-24 px-6 text-center">
       <div className="mb-12 relative h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
-        <motion.div 
+        <motion.div
           className="absolute top-0 left-0 h-full bg-blue-500"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -166,15 +201,24 @@ export function GeneratingStage({
           className="space-y-6"
         >
           {error && (
-            <div className="p-4 bg-red-950/30 border border-red-900 rounded-xl text-red-400 text-sm mb-6 flex items-center justify-between gap-4">
-              <span className="text-left">{error}</span>
-              <button
-                onClick={handleManualRetry}
-                className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 rounded-lg text-xs font-medium transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Retry now
-              </button>
+            <div className="p-4 bg-red-950/30 border border-red-900 rounded-xl text-red-400 text-sm mb-6">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-left">
+                  {error}{' '}
+                  {countdown !== null && (
+                    <span className="text-red-300 font-mono">
+                      Retrying in {formatCountdown(countdown)}...
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={handleManualRetry}
+                  className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200 rounded-lg text-xs font-medium transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry now
+                </button>
+              </div>
             </div>
           )}
 
@@ -182,7 +226,7 @@ export function GeneratingStage({
             {step === 'outline' && <Sparkles className="w-12 h-12 text-blue-400 animate-pulse" />}
             {step === 'cover' && <ImageIcon className="w-12 h-12 text-indigo-400 animate-pulse" />}
             {step === 'chapters' && <BookOpen className="w-12 h-12 text-emerald-400 animate-pulse" />}
-            
+
             <h2 className="text-2xl font-bold">
               {step === 'outline' && 'Architecting the story...'}
               {step === 'cover' && 'Painting the cover art...'}

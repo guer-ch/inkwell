@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 // Hardcode your Pollinations public key here
-const POLLINATIONS_PUBLIC_KEY: string = "pk_kCibYF3NJ5tObi5N";
+const POLLINATIONS_PUBLIC_KEY: string = "pk_6GDWiLcGmNyDe3ME";
 
 export default function App() {
   const [stage, setStage] = useState<AppStage>('setup');
@@ -53,15 +53,15 @@ export default function App() {
   }, []);
 
   const handleConnect = () => {
-    // client_id is optional in the Pollinations authorize URL.
-    // Including it requires a registered app — if the key isn't registered,
-    // the consent screen will reject it. Skip it if it's missing or a placeholder.
+    if (!POLLINATIONS_PUBLIC_KEY || POLLINATIONS_PUBLIC_KEY === "YOUR_HARDCODED_PUBLIC_KEY_HERE") {
+      alert("Please hardcode your actual POLLINATIONS_PUBLIC_KEY in src/App.tsx.");
+      return;
+    }
+
     const params = new URLSearchParams({
+      client_id: POLLINATIONS_PUBLIC_KEY,
       redirect_uri: window.location.origin
     });
-    if (POLLINATIONS_PUBLIC_KEY && POLLINATIONS_PUBLIC_KEY !== "YOUR_HARDCODED_PUBLIC_KEY_HERE") {
-      params.set('client_id', POLLINATIONS_PUBLIC_KEY);
-    }
     window.location.href = `https://enter.pollinations.ai/authorize?${params}`;
   };
 
