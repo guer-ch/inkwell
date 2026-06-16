@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 // Hardcode your Pollinations public key here
-const POLLINATIONS_PUBLIC_KEY: string = "pk_6GDWiLcGmNyDe3ME";
+const POLLINATIONS_PUBLIC_KEY: string = "pk_kCibYF3NJ5tObi5N";
 
 export default function App() {
   const [stage, setStage] = useState<AppStage>('setup');
@@ -38,17 +38,24 @@ export default function App() {
       }
     }
 
-    // Handle Pollinations BYOP redirect (api_key=... in URL fragment)
+    // Handle Pollinations BYOP redirect (api_key=... in URL fragment or search query)
     const hash = window.location.hash;
+    const search = window.location.search;
+    let token = '';
+
     if (hash.includes('api_key=') || hash.includes('pollen_token=')) {
       const params = new URLSearchParams(hash.replace('#', ''));
-      const token = params.get('api_key') || params.get('pollen_token');
-      if (token) {
-        setPollinationsKey(token);
-        localStorage.setItem('pollinations_key', token);
-        // Clean the URL
-        window.history.replaceState(null, '', window.location.pathname);
-      }
+      token = params.get('api_key') || params.get('pollen_token') || '';
+    } else if (search.includes('api_key=') || search.includes('pollen_token=')) {
+      const params = new URLSearchParams(search);
+      token = params.get('api_key') || params.get('pollen_token') || '';
+    }
+
+    if (token) {
+      setPollinationsKey(token);
+      localStorage.setItem('pollinations_key', token);
+      // Clean the URL
+      window.history.replaceState(null, '', window.location.pathname);
     }
   }, []);
 

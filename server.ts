@@ -150,7 +150,7 @@ app.post("/api/generate-cover", async (req, res) => {
         headers: { 'Authorization': `Bearer ${apiKey}` },
         responseType: 'arraybuffer'
       });
-      const base64 = Buffer.from(response.data, 'binary').toString('base64');
+      const base64 = Buffer.from(response.data).toString('base64');
       res.json({ imageUrl: `data:image/jpeg;base64,${base64}` });
       return;
     } catch (error) {
@@ -164,7 +164,7 @@ app.post("/api/generate-cover", async (req, res) => {
 
 // 4. Export PDF
 app.post("/api/export/pdf", async (req, res) => {
-  const { title, author, chapters, coverUrl } = req.body;
+  const { title = "Untitled Book", author = "AI Author", chapters = [], coverUrl } = req.body;
   
   try {
     const doc = new jsPDF();
@@ -176,27 +176,32 @@ app.post("/api/export/pdf", async (req, res) => {
     doc.text(title, pageWidth / 2, 100, { align: "center" });
     
     doc.setFontSize(18);
-    doc.text(`By ${author || "AI Author"}`, pageWidth / 2, 120, { align: "center" });
+    doc.text(`By ${author}`, pageWidth / 2, 120, { align: "center" });
     
+    const safeChapters = Array.isArray(chapters) ? chapters : [];
+
     // Table of Contents
     doc.addPage();
     doc.setFontSize(20);
     doc.text("Table of Contents", 20, 30);
     doc.setFontSize(12);
-    chapters.forEach((ch: any, i: number) => {
-      doc.text(`Chapter ${ch.number}: ${ch.title}`, 20, 50 + (i * 10));
+    safeChapters.forEach((ch: any, i: number) => {
+      if (ch) {
+        doc.text(`Chapter ${ch.number || (i + 1)}: ${ch.title || "Untitled"}`, 20, 50 + (i * 10));
+      }
     });
     
     // Chapters
-    chapters.forEach((ch: any) => {
+    safeChapters.forEach((ch: any, i: number) => {
+      if (!ch) return;
       doc.addPage();
       doc.setFont("serif", "bold");
       doc.setFontSize(22);
-      doc.text(`Chapter ${ch.number}: ${ch.title}`, 20, 30);
+      doc.text(`Chapter ${ch.number || (i + 1)}: ${ch.title || "Untitled"}`, 20, 30);
       
       doc.setFont("serif", "normal");
       doc.setFontSize(11);
-      const splitText: string[] = doc.splitTextToSize(ch.content, pageWidth - 40);
+      const splitText: string[] = doc.splitTextToSize(ch.content || "", pageWidth - 40);
       
       let y = 50;
       const margin = 20;
@@ -224,10 +229,13 @@ app.post("/api/export/pdf", async (req, res) => {
 
 // 5. Export Markdown
 app.post("/api/export/markdown", (req, res) => {
-  const { title, chapters } = req.body;
+  const { title = "Untitled Book", chapters = [] } = req.body;
   let md = `# ${title}\n\n`;
-  chapters.forEach((ch: any) => {
-    md += `## Chapter ${ch.number}: ${ch.title}\n\n${ch.content}\n\n`;
+  const safeChapters = Array.isArray(chapters) ? chapters : [];
+  safeChapters.forEach((ch: any, i: number) => {
+    if (ch) {
+      md += `## Chapter ${ch.number || (i + 1)}: ${ch.title || "Untitled"}\n\n${ch.content || ""}\n\n`;
+    }
   });
   
   res.setHeader('Content-Type', 'text/markdown');
