@@ -63,11 +63,6 @@ export default function App() {
   }, []);
 
   const handleConnect = () => {
-    if (!POLLINATIONS_PUBLIC_KEY || POLLINATIONS_PUBLIC_KEY === "YOUR_HARDCODED_PUBLIC_KEY_HERE") {
-      alert("Please hardcode your actual POLLINATIONS_PUBLIC_KEY in src/App.tsx.");
-      return;
-    }
-
     const params = new URLSearchParams({
       client_id: POLLINATIONS_PUBLIC_KEY,
       redirect_uri: window.location.origin + window.location.pathname
