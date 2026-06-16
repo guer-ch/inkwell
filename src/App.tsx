@@ -70,8 +70,9 @@ export default function App() {
 
     const params = new URLSearchParams({
       client_id: POLLINATIONS_PUBLIC_KEY,
-      redirect_uri: window.location.origin
+      redirect_uri: window.location.origin + window.location.pathname
     });
+
     window.location.href = `https://enter.pollinations.ai/authorize?${params}`;
   };
 
