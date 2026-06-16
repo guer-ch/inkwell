@@ -22,7 +22,10 @@ export default function App() {
     language: string;
     modelText: string;
     modelImage: string;
+    volumes: number;
+    pagesPerVolume: number;
   } | null>(null);
+
 
   // Effective key: user-connected Pollen takes priority, otherwise fall back to the public key
   const effectiveApiKey = pollinationsKey || POLLINATIONS_PUBLIC_KEY;

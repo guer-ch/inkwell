@@ -10,6 +10,8 @@ interface BookFormProps {
     language: string;
     modelText: string;
     modelImage: string;
+    volumes: number;
+    pagesPerVolume: number;
   }) => void;
 }
 
@@ -47,11 +49,13 @@ export function BookForm({ onGenerate }: BookFormProps) {
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [modelText, setModelText] = useState(TEXT_MODELS[0].id); // defaults to 'grok'
   const [modelImage, setModelImage] = useState(IMAGE_MODELS[0].id);
+  const [volumes, setVolumes] = useState(1);
+  const [pagesPerVolume, setPagesPerVolume] = useState(150);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) return;
-    onGenerate({ description, genre, language, modelText, modelImage });
+    onGenerate({ description, genre, language, modelText, modelImage, volumes, pagesPerVolume });
   };
 
   return (
@@ -100,6 +104,33 @@ export function BookForm({ onGenerate }: BookFormProps) {
             >
               {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">Volumes</label>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={volumes}
+              onChange={(e) => setVolumes(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-[10px] text-zinc-500 block">Create a single book or a multi-volume series</span>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">Pages per Volume</label>
+            <input
+              type="number"
+              min={10}
+              max={1000}
+              value={pagesPerVolume}
+              onChange={(e) => setPagesPerVolume(Math.max(10, parseInt(e.target.value) || 10))}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-[10px] text-zinc-500 block">Target page count (~250 words per page)</span>
           </div>
         </div>
 

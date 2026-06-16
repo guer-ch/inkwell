@@ -67,6 +67,19 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
 
   const currentChapter = book.chapters.find(c => c.number === selectedChapter) || book.chapters[0];
 
+  // Group chapters by volume
+  const chaptersByVolume: { [key: number]: { title: string; chapters: Chapter[] } } = {};
+  book.chapters.forEach(ch => {
+    const volNum = ch.volumeNumber || 1;
+    const volTitle = ch.volumeTitle || `Volume ${volNum}`;
+    if (!chaptersByVolume[volNum]) {
+      chaptersByVolume[volNum] = { title: volTitle, chapters: [] };
+    }
+    chaptersByVolume[volNum].chapters.push(ch);
+  });
+
+  const hasMultipleVolumes = Object.keys(chaptersByVolume).length > 1;
+
   return (
     <div className="flex h-screen bg-zinc-950 overflow-hidden">
       {/* Table of Contents Sidebar */}
@@ -85,34 +98,47 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
           <div className="w-9" />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          {book.chapters.map((ch) => (
-            <button
-              key={ch.number}
-              onClick={() => setSelectedChapter(ch.number)}
-              className={cn(
-                "w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 group",
-                selectedChapter === ch.number 
-                  ? "bg-white text-black shadow-lg" 
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-              )}
-            >
-              <span className={cn(
-                "text-xs font-bold w-6 h-6 rounded-md flex items-center justify-center shrink-0",
-                selectedChapter === ch.number ? "bg-black/10" : "bg-zinc-800"
-              )}>
-                {ch.number}
-              </span>
-              <div className="min-w-0">
-                <div className="font-medium text-sm truncate">{ch.title}</div>
-                <div className={cn(
-                  "text-[10px] line-clamp-1",
-                  selectedChapter === ch.number ? "text-black/60" : "text-zinc-500"
-                )}>{ch.summary}</div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {Object.entries(chaptersByVolume).map(([volNumStr, volData]) => {
+            const volNum = parseInt(volNumStr);
+            return (
+              <div key={volNum} className="space-y-1">
+                {hasMultipleVolumes && (
+                  <div className="px-3 py-1 text-[10px] font-bold tracking-widest text-amber-500/80 uppercase font-mono border-b border-zinc-800/40 mb-2">
+                    {volData.title}
+                  </div>
+                )}
+                {volData.chapters.map((ch) => (
+                  <button
+                    key={ch.number}
+                    onClick={() => setSelectedChapter(ch.number)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 group",
+                      selectedChapter === ch.number 
+                        ? "bg-white text-black shadow-lg" 
+                        : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-xs font-bold w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+                      selectedChapter === ch.number ? "bg-black/10" : "bg-zinc-800"
+                    )}>
+                      {ch.number}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{ch.title}</div>
+                      <div className={cn(
+                        "text-[10px] line-clamp-1",
+                        selectedChapter === ch.number ? "text-black/60" : "text-zinc-500"
+                      )}>{ch.summary}</div>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
+
 
         <div className="p-6 border-t border-zinc-800 space-y-3">
           <button 
@@ -190,10 +216,16 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
               className="book-content"
             >
               <div className="mb-12 text-center">
+                {currentChapter.volumeTitle && (
+                  <span className="text-zinc-500 font-mono text-[10px] tracking-widest uppercase mb-1 block">
+                    {currentChapter.volumeTitle}
+                  </span>
+                )}
                 <span className="text-amber-500/80 font-mono text-sm tracking-widest uppercase mb-4 block">Chapter {currentChapter.number}</span>
                 <h2 className="text-4xl font-bold font-serif mb-8">{currentChapter.title}</h2>
                 <div className="w-24 h-px bg-zinc-800 mx-auto" />
               </div>
+
               
               <div className="prose prose-invert prose-amber max-w-none prose-lg">
                 <ReactMarkdown>{currentChapter.content}</ReactMarkdown>

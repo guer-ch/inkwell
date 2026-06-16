@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, Sparkles, Image as ImageIcon, BookOpen, RefreshCw } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
+
 import { Chapter, Book } from '@/src/types';
-import { generateOutline, generateChapter, generateCover } from '@/src/lib/pollinations';
+import { generateOutline, generateCover, generateChapterBeats, draftChapter, humanizeChapter } from '@/src/lib/pollinations';
+
 
 interface GeneratingStageProps {
   description: string;
@@ -10,6 +13,8 @@ interface GeneratingStageProps {
   language: string;
   modelText: string;
   modelImage: string;
+  volumes: number;
+  pagesPerVolume: number;
   apiKey?: string;
   onComplete: (book: Book) => void;
 }
@@ -18,15 +23,17 @@ interface GeneratingStageProps {
 const BACKOFF_SCHEDULE = [1, 3, 15, 60, 300];
 
 export function GeneratingStage({ 
-  description, genre, language, modelText, modelImage, apiKey, onComplete 
+  description, genre, language, modelText, modelImage, volumes, pagesPerVolume, apiKey, onComplete 
 }: GeneratingStageProps) {
   const [step, setStep] = useState<'outline' | 'cover' | 'chapters'>('outline');
   const [title, setTitle] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
+  const [chapterPhase, setChapterPhase] = useState<'beats' | 'draft' | 'humanize' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
 
   const retryTimerRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
@@ -92,7 +99,7 @@ export function GeneratingStage({
       retryAttemptRef.current = 0;
 
       const outline = await generateOutline({
-        description, genre, language, model: modelText, apiKey
+        description, genre, language, model: modelText, volumes, pagesPerVolume, apiKey
       });
       setTitle(outline.title);
       setChapters(outline.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false })));
@@ -125,7 +132,9 @@ export function GeneratingStage({
         chapters,
         createdAt: new Date().toISOString(),
         modelText,
-        modelImage
+        modelImage,
+        volumesCount: volumes,
+        pagesPerVolume: pagesPerVolume
       };
       onComplete(finalBook);
     }
@@ -147,24 +156,53 @@ export function GeneratingStage({
 
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex ? { ...c, isGenerating: true } : c));
 
-      const result = await generateChapter({
+      // 1. Beats Phase
+      setChapterPhase('beats');
+      const beats = await generateChapterBeats({
         bookDescription: description,
         genre,
         language,
         chapterNumber: ch.number,
         chapterTitle: ch.title,
         chapterSummary: ch.summary,
+        volumeNumber: ch.volumeNumber,
+        previousChaptersSummaries: prevSummaries,
+        model: modelText,
+        apiKey
+      });
+
+      // 2. Drafting Phase
+      setChapterPhase('draft');
+      const draft = await draftChapter({
+        bookDescription: description,
+        genre,
+        language,
+        chapterNumber: ch.number,
+        chapterTitle: ch.title,
+        chapterSummary: ch.summary,
+        chapterBeats: beats,
         previousChaptersSummaries: prevSummaries,
         previousChapterEnding: prevChapterEnd,
         model: modelText,
         apiKey
       });
 
+      // 3. Humanizing Phase
+      setChapterPhase('humanize');
+      const refinedContent = await humanizeChapter({
+        draftContent: draft.content,
+        genre,
+        language,
+        model: modelText,
+        apiKey
+      });
+
       retryAttemptRef.current = 0; // reset backoff on success
       setChapters(prev => prev.map((c, i) => i === currentChapterIndex
-        ? { ...c, content: result.content, isGenerating: false }
+        ? { ...c, content: refinedContent, isGenerating: false }
         : c
       ));
+      setChapterPhase(null);
       setCurrentChapterIndex(prev => prev + 1);
     } catch (err) {
       console.error(err);
@@ -172,6 +210,7 @@ export function GeneratingStage({
       scheduleRetry(generateNextChapter);
     }
   };
+
 
   const progress = chapters.length > 0
     ? ((currentChapterIndex + 1) / (chapters.length + 1)) * 100
@@ -237,6 +276,25 @@ export function GeneratingStage({
               {step === 'cover' && `Creating a cinematic visual for ${title || 'your book'}.`}
               {step === 'chapters' && `Writing: "${chapters[currentChapterIndex]?.title}"`}
             </p>
+
+            {step === 'chapters' && chapterPhase && (
+              <div className="mt-4 flex items-center justify-center gap-6 px-5 py-2.5 bg-zinc-900/45 border border-zinc-800/60 rounded-2xl max-w-md w-full mx-auto backdrop-blur-sm shadow-inner">
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", chapterPhase === 'beats' ? "bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" : "bg-zinc-700")} />
+                  <span className={cn("text-xs font-semibold font-mono uppercase tracking-wider", chapterPhase === 'beats' ? "text-amber-400 font-medium" : "text-zinc-500")}>Outline Beats</span>
+                </div>
+                <div className="w-1.5 h-1.5 bg-zinc-850 rounded-full" />
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", chapterPhase === 'draft' ? "bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" : "bg-zinc-700")} />
+                  <span className={cn("text-xs font-semibold font-mono uppercase tracking-wider", chapterPhase === 'draft' ? "text-blue-400 font-medium" : "text-zinc-500")}>Drafting Prose</span>
+                </div>
+                <div className="w-1.5 h-1.5 bg-zinc-850 rounded-full" />
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", chapterPhase === 'humanize' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-zinc-700")} />
+                  <span className={cn("text-xs font-semibold font-mono uppercase tracking-wider", chapterPhase === 'humanize' ? "text-emerald-400 font-medium" : "text-zinc-500")}>Humanizing</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {step === 'chapters' && chapters[currentChapterIndex] && (

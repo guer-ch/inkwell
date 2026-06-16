@@ -1,5 +1,7 @@
 export interface Chapter {
   number: number;
+  volumeNumber?: number;
+  volumeTitle?: string;
   title: string;
   summary: string;
   content: string;
@@ -17,6 +19,9 @@ export interface Book {
   createdAt: string;
   modelText: string;
   modelImage: string;
+  volumesCount?: number;
+  pagesPerVolume?: number;
 }
 
 export type AppStage = 'setup' | 'generating' | 'reader';
+

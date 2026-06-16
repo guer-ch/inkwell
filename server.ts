@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import axios from "axios";
 import { jsPDF } from "jspdf";
 import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
 
@@ -15,6 +16,19 @@ app.use(express.json({ limit: '50mb' }));
 // Helper to count words
 function countWords(str: string) {
   return str.split(/\s+/).filter(word => word.length > 0).length;
+}
+
+// Helper to read agent skills securely
+function getSkillContent(skillName: string): string {
+  try {
+    const filePath = path.join(process.cwd(), "skills", skillName, "SKILL.md");
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, "utf-8");
+    }
+  } catch (e) {
+    console.warn(`Failed to read skill ${skillName}:`, e);
+  }
+  return "";
 }
 
 // AI Text Generation Helper
@@ -53,26 +67,47 @@ async function generateText(prompt: string, model: string = "gemini", apiKey?: s
 
 // 1. Generate Outline
 app.post("/api/generate-outline", async (req, res) => {
-  const { description, genre, language, model = "gemini", apiKey } = req.body;
-  const prompt = `Generate a book outline for a ${genre} book in ${language}. 
-  Description: ${description}
-  
-  Return ONLY a JSON object with the following structure:
-  {
-    "title": "Book Title",
-    "chapters": [
-      { "number": 1, "title": "Chapter Title", "summary": "Detailed summary of what happens in this chapter." }
-    ]
-  }
-  Ensure there are at least 10 chapters. Output MUST be valid JSON.`;
+  const { description, genre, language, volumes = 1, pagesPerVolume = 150, model = "gemini", apiKey } = req.body;
+  const outlineSkill = getSkillContent("outlining");
+  const chaptersPerVolume = Math.max(5, Math.round(pagesPerVolume / 10));
+  const totalChapters = chaptersPerVolume * volumes;
+
+  const prompt = `
+You are the Outlining Agent. Use the following outlining skill rules:
+${outlineSkill}
+
+Your task is to outline a book series with the following specifications:
+- Description: ${description}
+- Genre: ${genre}
+- Language: ${language}
+- Number of Volumes: ${volumes}
+- Target Pages per Volume: ${pagesPerVolume} (about ${pagesPerVolume * 250} words)
+- Expected Chapters per Volume: ${chaptersPerVolume} chapters (target 10 pages / ~2500 words per chapter)
+- Total Chapters across all volumes: ${totalChapters} chapters
+
+You MUST return ONLY a valid JSON object with the following structure:
+{
+  "title": "Book Series Title",
+  "chapters": [
+    {
+      "number": 1,
+      "volumeNumber": 1,
+      "volumeTitle": "Volume 1 Title",
+      "title": "Chapter 1 Title",
+      "summary": "Detailed narrative beats and summary of what happens in this chapter."
+    }
+  ]
+}
+Ensure there are exactly ${totalChapters} chapters, with ${chaptersPerVolume} chapters per volume.
+Output MUST be valid JSON.`;
 
   try {
     const result = await generateText(prompt, model, apiKey);
-    // Pollinations might return markdown with json inside
     const jsonStr = result.replace(/```json|```/g, "").trim();
     const outline = JSON.parse(jsonStr);
     res.json(outline);
   } catch (error) {
+    console.error("Outline generation error:", error);
     res.status(500).json({ error: "Failed to generate outline" });
   }
 });
@@ -81,52 +116,99 @@ app.post("/api/generate-outline", async (req, res) => {
 app.post("/api/generate-chapter", async (req, res) => {
   const { 
     book_description, genre, language, chapter_number, chapter_title, 
-    chapter_summary, previous_chapters_summaries, previous_chapter_ending,
+    chapter_summary, volumeNumber = 1, previous_chapters_summaries, previous_chapter_ending,
     model = "gemini", apiKey
   } = req.body;
 
-  let fullContent = "";
-  let currentWords = 0;
-  const targetWords = 1500;
-  let iterations = 0;
-  const maxIterations = 4; // Max attempts to avoid infinite loops
-
   try {
+    const draftingSkill = getSkillContent("drafting");
+    const humanizingSkill = getSkillContent("humanizing");
+
+    // 1. Generate beats first
+    const beatsPrompt = `
+You are the Outlining/Beats Agent.
+Book Description: ${book_description}
+Genre: ${genre}
+Language: ${language}
+Volume: ${volumeNumber}
+Chapter ${chapter_number}: ${chapter_title}
+Chapter Summary: ${chapter_summary}
+
+Previous context:
+${previous_chapters_summaries || "None."}
+
+Write 5-7 detailed scene beats (bullet points) for Chapter ${chapter_number}.
+Each beat should specify the setting, character emotions, actions, and key dialogue points.
+Return only the bullet points.
+`;
+    const beats = await generateText(beatsPrompt, model, apiKey);
+
+    // 2. Draft creative prose
+    let fullContent = "";
+    let currentWords = 0;
+    const targetWords = 1500;
+    let iterations = 0;
+    const maxIterations = 4;
+
     while (currentWords < targetWords && iterations < maxIterations) {
       const isContinuing = iterations > 0;
       const prompt = `
-        You are writing a ${genre} book in ${language}. 
-        Book Description: ${book_description}
-        Genre: ${genre}
-        Language: ${language}
-        
-        Current Task: Write Chapter ${chapter_number}: ${chapter_title}.
-        Chapter Summary: ${chapter_summary}
-        
-        Context regarding previous chapters:
-        ${previous_chapters_summaries || "None yet."}
-        
-        ${isContinuing ? `You have already written some content. The last part was: "...${previous_chapter_ending || fullContent.slice(-500)}"
-        Please CONTINUE writing this chapter from where you left off. Do not repeat yourself. Focus on narrative flow, dialogue, and deep character development.` : 
-        "Start writing the chapter now. Focus on descriptive prose and immersive storytelling."}
-        
-        ${isContinuing ? "Continue until you reach a natural pause or significant length." : "Write at least 800 words for this segment."}
-      `;
+You are the Drafting Agent. Use the following drafting skill rules:
+${draftingSkill}
+
+Book Description: ${book_description}
+Genre: ${genre}
+Language: ${language}
+Current Task: Write Chapter ${chapter_number}: ${chapter_title}
+
+Chapter Outline Beats:
+${beats}
+
+Context regarding previous chapters:
+${previous_chapters_summaries || "None yet."}
+
+${
+  isContinuing
+    ? `You have already written some content. The last part was: "...${previous_chapter_ending || fullContent.slice(-500)}"
+Please CONTINUE writing this chapter from where you left off, following the chapter beats. Do not repeat yourself. Focus on narrative flow, dialogue, and character development.`
+    : "Start writing the chapter draft now, based on the beats."
+}
+
+${isContinuing ? "Continue until you reach a natural pause or significant length." : "Write at least 800 words for this segment."}
+`;
 
       const chunk = await generateText(prompt, model, apiKey);
       fullContent += (isContinuing ? "\n\n" : "") + chunk;
       currentWords = countWords(fullContent);
       iterations++;
       
-      // If we are close enough or getting repetitive, we might stop
       if (chunk.length < 200) break; 
     }
 
-    res.json({ content: fullContent, wordCount: currentWords });
+    // 3. Humanize
+    const humanizePrompt = `
+You are the Humanizer and Revision Agent. Use the following humanizing skill rules:
+${humanizingSkill}
+
+Genre: ${genre}
+Language: ${language}
+
+Review and revise the following draft text to make it sound human-written, engaging, and polished:
+----
+${fullContent}
+----
+
+Return ONLY the polished, refined chapter prose. Do not include any meta comments or introductory notes.
+`;
+
+    const humanized = await generateText(humanizePrompt, model, apiKey);
+    res.json({ content: humanized, wordCount: countWords(humanized) });
   } catch (error) {
+    console.error("Chapter generation error:", error);
     res.status(500).json({ error: "Failed to generate chapter" });
   }
 });
+
 
 // 3. Generate Cover
 app.post("/api/generate-cover", async (req, res) => {
