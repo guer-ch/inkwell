@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 // Hardcode your Pollinations public key here
-const POLLINATIONS_PUBLIC_KEY: string = "pk_kCibYF3NJ5tObi5N";
+const POLLINATIONS_PUBLIC_KEY: string = "pk_gf18IFswDRED1XSZ";
 
 export default function App() {
   const [stage, setStage] = useState<AppStage>('setup');
@@ -112,7 +112,7 @@ export default function App() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-blue-500/30">
       {/* Top Left: Actions */}
       <div className="fixed top-6 left-6 z-[60] flex gap-3">
-        <button 
+        <button
           onClick={() => setIsDrawerOpen(true)}
           className="px-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all flex items-center gap-2 group"
         >
@@ -121,7 +121,7 @@ export default function App() {
         </button>
 
         {stage !== 'setup' && stage !== 'generating' && (
-          <button 
+          <button
             onClick={() => {
               setStage('setup');
               setCurrentBook(null);
@@ -133,7 +133,7 @@ export default function App() {
           </button>
         )}
 
-        <button 
+        <button
           onClick={handleConnect}
           className={cn(
             "px-4 py-2.5 rounded-xl border transition-all flex items-center gap-2 group whitespace-nowrap",
@@ -150,8 +150,8 @@ export default function App() {
       {/* Top Right: Branding */}
       <div className="fixed top-6 right-6 z-[60] flex flex-col items-end gap-1">
         <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600">
-           <span>Powered by</span>
-           <a href="https://pollinations.ai" target="_blank" className="text-zinc-500 hover:text-blue-500 transition-colors">Pollinations.ai</a>
+          <span>Powered by</span>
+          <a href="https://pollinations.ai" target="_blank" className="text-zinc-500 hover:text-blue-500 transition-colors">Pollinations.ai</a>
         </div>
       </div>
 
@@ -159,14 +159,14 @@ export default function App() {
       <AnimatePresence>
         {isDrawerOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -189,7 +189,7 @@ export default function App() {
                   </div>
                 ) : (
                   allBooks.map(book => (
-                    <div 
+                    <div
                       key={book.id}
                       onClick={() => handleSelectBook(book)}
                       className="group relative flex gap-4 p-4 bg-zinc-950/50 rounded-2xl border border-zinc-800 hover:border-zinc-600 transition-all cursor-pointer overflow-hidden"
@@ -204,7 +204,7 @@ export default function App() {
                           {book.genre}
                         </span>
                       </div>
-                      <button 
+                      <button
                         onClick={(e) => handleDeleteBook(book.id, e)}
                         className="absolute top-4 right-4 p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all"
                       >
@@ -214,8 +214,8 @@ export default function App() {
                   ))
                 )}
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   setStage('setup');
                   setCurrentBook(null);
@@ -236,16 +236,16 @@ export default function App() {
         )}
 
         {stage === 'generating' && formData && (
-          <GeneratingStage 
-            {...formData} 
+          <GeneratingStage
+            {...formData}
             apiKey={effectiveApiKey}
-            onComplete={handleGenerationComplete} 
+            onComplete={handleGenerationComplete}
           />
         )}
 
         {stage === 'reader' && currentBook && (
-          <BookReader 
-            book={currentBook} 
+          <BookReader
+            book={currentBook}
             apiKey={effectiveApiKey}
             onBack={() => setStage('setup')}
             onUpdateBook={updateBook}
