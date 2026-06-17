@@ -45,17 +45,35 @@ const IMAGE_MODELS = [
 
 export function BookForm({ onGenerate }: BookFormProps) {
   const [description, setDescription] = useState('');
-  const [genre, setGenre] = useState(GENRES[0]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([GENRES[0]]);
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [modelText, setModelText] = useState(TEXT_MODELS[0].id); // defaults to 'grok'
   const [modelImage, setModelImage] = useState(IMAGE_MODELS[0].id);
   const [volumes, setVolumes] = useState(1);
   const [pagesPerVolume, setPagesPerVolume] = useState(150);
 
+  const handleToggleGenre = (g: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(g)) {
+        return prev.filter(item => item !== g);
+      } else {
+        return [...prev, g];
+      }
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
-    onGenerate({ description, genre, language, modelText, modelImage, volumes, pagesPerVolume });
+    if (!description.trim() || selectedGenres.length === 0) return;
+    onGenerate({
+      description,
+      genre: selectedGenres.join(', '),
+      language,
+      modelText,
+      modelImage,
+      volumes,
+      pagesPerVolume
+    });
   };
 
   return (
@@ -84,27 +102,81 @@ export function BookForm({ onGenerate }: BookFormProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Genre</label>
-            <select
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-zinc-300">Genres (First selected is Major, subsequent selections are Sub-genres)</label>
+          
+          {/* Selected genres display */}
+          <div className="flex flex-wrap gap-2 p-3 bg-zinc-950 border border-zinc-800 rounded-xl min-h-[50px] items-center">
+            {selectedGenres.length === 0 ? (
+              <span className="text-xs text-zinc-500">Please select at least one genre...</span>
+            ) : (
+              selectedGenres.map((g, idx) => {
+                const isMajor = idx === 0;
+                return (
+                  <span
+                    key={g}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-all",
+                      isMajor 
+                        ? "bg-blue-500/10 border-blue-500/30 text-blue-400 font-semibold shadow-[0_0_8px_rgba(59,130,246,0.1)]" 
+                        : "bg-zinc-900 border-zinc-800 text-zinc-300"
+                    )}
+                  >
+                    {g}
+                    <span className={cn(
+                      "text-[9px] px-1 py-0.2 rounded font-bold uppercase tracking-wider",
+                      isMajor ? "text-blue-500 bg-blue-500/10" : "text-zinc-500 bg-zinc-800"
+                    )}>
+                      {isMajor ? 'Major' : 'Sub'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleGenre(g)}
+                      className="text-zinc-500 hover:text-zinc-300 transition-colors ml-1 font-bold text-sm cursor-pointer"
+                    >
+                      &times;
+                    </button>
+                  </span>
+                );
+              })
+            )}
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Language</label>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
+
+          {/* Grid of available genres to select */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            {GENRES.map(g => {
+              const isSelected = selectedGenres.includes(g);
+              const isMajor = selectedGenres[0] === g;
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => handleToggleGenre(g)}
+                  className={cn(
+                    "px-3 py-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer select-none",
+                    isMajor
+                      ? "bg-blue-500/20 border-blue-500 text-blue-400 font-bold"
+                      : isSelected
+                      ? "bg-zinc-800 border-zinc-700 text-zinc-100 font-semibold"
+                      : "bg-zinc-950/40 border-zinc-900 text-zinc-400 hover:border-zinc-800 hover:text-zinc-300"
+                  )}
+                >
+                  {g}
+                </button>
+              );
+            })}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-zinc-300">Language</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -159,7 +231,7 @@ export function BookForm({ onGenerate }: BookFormProps) {
 
         <button
           type="submit"
-          disabled={!description.trim()}
+          disabled={!description.trim() || selectedGenres.length === 0}
           className={cn(
             "w-full py-4 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
             "group"
