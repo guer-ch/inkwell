@@ -11,11 +11,40 @@ import { cn } from './lib/utils';
 const POLLINATIONS_PUBLIC_KEY: string = "pk_gf18IFswDRED1XSZ";
 
 export default function App() {
-  const [stage, setStage] = useState<AppStage>('setup');
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [allBooks, setAllBooks] = useState<Book[]>(() => {
+    const saved = localStorage.getItem('inkwell_books');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved books', e);
+      }
+    }
+    return [];
+  });
+
+  const [stage, setStage] = useState<AppStage>(() => {
+    const savedStage = localStorage.getItem('inkwell_stage') as AppStage | null;
+    return savedStage || 'setup';
+  });
+
+  const [currentBook, setCurrentBook] = useState<Book | null>(() => {
+    const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
+    const savedBooks = localStorage.getItem('inkwell_books');
+    if (savedCurrentBookId && savedBooks) {
+      try {
+        const books = JSON.parse(savedBooks) as Book[];
+        return books.find(b => b.id === savedCurrentBookId) || null;
+      } catch (e) {
+        console.error('Failed to find saved current book', e);
+      }
+    }
+    return null;
+  });
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [pollinationsKey, setPollinationsKey] = useState<string>(localStorage.getItem('pollinations_key') || '');
+  
   const [formData, setFormData] = useState<{
     description: string;
     genre: string;
@@ -24,36 +53,16 @@ export default function App() {
     modelImage: string;
     volumes: number;
     pagesPerVolume: number;
-  } | null>(null);
-
-
-  // Effective key: user-connected Pollen takes priority, otherwise fall back to the public key
-  const effectiveApiKey = pollinationsKey || POLLINATIONS_PUBLIC_KEY;
-
-  // Load books and handle Pollinations redirect
-  useEffect(() => {
-    const saved = localStorage.getItem('inkwell_books');
-    let loadedBooks: Book[] = [];
-    if (saved) {
-      try {
-        loadedBooks = JSON.parse(saved);
-        setAllBooks(loadedBooks);
-      } catch (e) {
-        console.error('Failed to parse saved books', e);
-      }
-    }
-
-    // Auto-resume logic
-    const savedStage = localStorage.getItem('inkwell_stage') as AppStage | null;
+  } | null>(() => {
+    const savedStage = localStorage.getItem('inkwell_stage');
     const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
-
-    if (savedStage && savedCurrentBookId && loadedBooks.length > 0) {
-      const book = loadedBooks.find(b => b.id === savedCurrentBookId);
-      if (book) {
-        setCurrentBook(book);
-        setStage(savedStage);
-        if (savedStage === 'generating') {
-          setFormData({
+    const savedBooks = localStorage.getItem('inkwell_books');
+    if (savedStage === 'generating' && savedCurrentBookId && savedBooks) {
+      try {
+        const books = JSON.parse(savedBooks) as Book[];
+        const book = books.find(b => b.id === savedCurrentBookId);
+        if (book) {
+          return {
             description: book.description,
             genre: book.genre,
             language: book.language,
@@ -61,11 +70,20 @@ export default function App() {
             modelImage: book.modelImage,
             volumes: book.volumesCount || 1,
             pagesPerVolume: book.pagesPerVolume || 5,
-          });
+          };
         }
+      } catch (e) {
+        console.error('Failed to load form data for resumed generation', e);
       }
     }
+    return null;
+  });
 
+  // Effective key: user-connected Pollen takes priority, otherwise fall back to the public key
+  const effectiveApiKey = pollinationsKey || POLLINATIONS_PUBLIC_KEY;
+
+  // Handle Pollinations redirect
+  useEffect(() => {
     // Handle Pollinations BYOP redirect (api_key=... in URL fragment or search query)
     const hash = window.location.hash;
     const search = window.location.search;

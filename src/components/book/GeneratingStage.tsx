@@ -38,7 +38,7 @@ export function GeneratingStage({
   const getInitialChapterIndex = () => {
     if (!resumeBook) return -1;
     const idx = resumeBook.chapters.findIndex(c => !c.content);
-    return idx !== -1 ? idx : 0;
+    return idx !== -1 ? idx : resumeBook.chapters.length;
   };
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(getInitialChapterIndex());
   const [chapterPhase, setChapterPhase] = useState<'beats' | 'draft' | 'humanize' | null>(null);
