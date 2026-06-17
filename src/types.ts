@@ -21,6 +21,7 @@ export interface Book {
   modelImage: string;
   volumesCount?: number;
   pagesPerVolume?: number;
+  isIncomplete?: boolean;
 }
 
 export type AppStage = 'setup' | 'generating' | 'reader';

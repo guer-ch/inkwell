@@ -17,22 +17,35 @@ interface GeneratingStageProps {
   pagesPerVolume: number;
   apiKey?: string;
   onComplete: (book: Book) => void;
+  resumeBook?: Book | null;
+  onUpdateProgress?: (book: Book) => void;
 }
 
 // Backoff schedule in seconds: 1, 3, 15, 60, 300, then stays at 300
 const BACKOFF_SCHEDULE = [1, 3, 15, 60, 300];
 
 export function GeneratingStage({ 
-  description, genre, language, modelText, modelImage, volumes, pagesPerVolume, apiKey, onComplete 
+  description, genre, language, modelText, modelImage, volumes, pagesPerVolume, apiKey, onComplete,
+  resumeBook, onUpdateProgress
 }: GeneratingStageProps) {
-  const [step, setStep] = useState<'outline' | 'cover' | 'chapters'>('outline');
-  const [title, setTitle] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(-1);
+  const [step, setStep] = useState<'outline' | 'cover' | 'chapters'>(
+    resumeBook ? 'chapters' : 'outline'
+  );
+  const [title, setTitle] = useState(resumeBook?.title || '');
+  const [coverUrl, setCoverUrl] = useState(resumeBook?.coverUrl || '');
+  const [chapters, setChapters] = useState<Chapter[]>(resumeBook?.chapters || []);
+  
+  const getInitialChapterIndex = () => {
+    if (!resumeBook) return -1;
+    const idx = resumeBook.chapters.findIndex(c => !c.content);
+    return idx !== -1 ? idx : 0;
+  };
+  const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(getInitialChapterIndex());
   const [chapterPhase, setChapterPhase] = useState<'beats' | 'draft' | 'humanize' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  const bookIdRef = useRef<string>(resumeBook?.id || crypto.randomUUID());
 
 
   const retryTimerRef = useRef<number | null>(null);
@@ -88,7 +101,9 @@ export function GeneratingStage({
   };
 
   useEffect(() => {
-    generateBook();
+    if (!resumeBook) {
+      generateBook();
+    }
     return () => clearAll();
   }, []);
 
@@ -102,7 +117,8 @@ export function GeneratingStage({
         description, genre, language, model: modelText, volumes, pagesPerVolume, apiKey
       });
       setTitle(outline.title);
-      setChapters(outline.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false })));
+      const initialChapters = outline.chapters.map((ch: any) => ({ ...ch, content: '', isGenerating: false }));
+      setChapters(initialChapters);
       setStep('cover');
 
       const cover = await generateCover({
@@ -110,6 +126,27 @@ export function GeneratingStage({
       });
       setCoverUrl(cover.imageUrl);
       setStep('chapters');
+
+      const initialBook: Book = {
+        id: bookIdRef.current,
+        title: outline.title,
+        description,
+        genre,
+        language,
+        coverUrl: cover.imageUrl,
+        chapters: initialChapters,
+        createdAt: new Date().toISOString(),
+        modelText,
+        modelImage,
+        volumesCount: volumes,
+        pagesPerVolume: pagesPerVolume,
+        isIncomplete: true
+      };
+
+      if (onUpdateProgress) {
+        onUpdateProgress(initialBook);
+      }
+
       setCurrentChapterIndex(0);
     } catch (err) {
       console.error(err);
@@ -121,16 +158,16 @@ export function GeneratingStage({
   useEffect(() => {
     if (step === 'chapters' && currentChapterIndex >= 0 && currentChapterIndex < chapters.length) {
       generateNextChapter();
-    } else if (step === 'chapters' && currentChapterIndex === chapters.length) {
+    } else if (step === 'chapters' && currentChapterIndex === chapters.length && chapters.length > 0) {
       const finalBook: Book = {
-        id: crypto.randomUUID(),
+        id: bookIdRef.current,
         title,
         description,
         genre,
         language,
         coverUrl,
         chapters,
-        createdAt: new Date().toISOString(),
+        createdAt: resumeBook?.createdAt || new Date().toISOString(),
         modelText,
         modelImage,
         volumesCount: volumes,
@@ -198,11 +235,34 @@ export function GeneratingStage({
       });
 
       retryAttemptRef.current = 0; // reset backoff on success
-      setChapters(prev => prev.map((c, i) => i === currentChapterIndex
-        ? { ...c, content: refinedContent, isGenerating: false }
-        : c
-      ));
+      let updatedChapters: Chapter[] = [];
+      setChapters(prev => {
+        updatedChapters = prev.map((c, i) => i === currentChapterIndex
+          ? { ...c, content: refinedContent, isGenerating: false }
+          : c
+        );
+        return updatedChapters;
+      });
       setChapterPhase(null);
+
+      if (onUpdateProgress) {
+        onUpdateProgress({
+          id: bookIdRef.current,
+          title,
+          description,
+          genre,
+          language,
+          coverUrl,
+          chapters: updatedChapters,
+          createdAt: resumeBook?.createdAt || new Date().toISOString(),
+          modelText,
+          modelImage,
+          volumesCount: volumes,
+          pagesPerVolume: pagesPerVolume,
+          isIncomplete: true
+        });
+      }
+
       setCurrentChapterIndex(prev => prev + 1);
     } catch (err) {
       console.error(err);

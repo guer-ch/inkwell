@@ -33,11 +33,36 @@ export default function App() {
   // Load books and handle Pollinations redirect
   useEffect(() => {
     const saved = localStorage.getItem('inkwell_books');
+    let loadedBooks: Book[] = [];
     if (saved) {
       try {
-        setAllBooks(JSON.parse(saved));
+        loadedBooks = JSON.parse(saved);
+        setAllBooks(loadedBooks);
       } catch (e) {
         console.error('Failed to parse saved books', e);
+      }
+    }
+
+    // Auto-resume logic
+    const savedStage = localStorage.getItem('inkwell_stage') as AppStage | null;
+    const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
+
+    if (savedStage && savedCurrentBookId && loadedBooks.length > 0) {
+      const book = loadedBooks.find(b => b.id === savedCurrentBookId);
+      if (book) {
+        setCurrentBook(book);
+        setStage(savedStage);
+        if (savedStage === 'generating') {
+          setFormData({
+            description: book.description,
+            genre: book.genre,
+            language: book.language,
+            modelText: book.modelText,
+            modelImage: book.modelImage,
+            volumes: book.volumesCount || 1,
+            pagesPerVolume: book.pagesPerVolume || 5,
+          });
+        }
       }
     }
 
@@ -76,6 +101,19 @@ export default function App() {
     localStorage.setItem('inkwell_books', JSON.stringify(allBooks));
   }, [allBooks]);
 
+  // Save active stage and current book ID to localStorage
+  useEffect(() => {
+    localStorage.setItem('inkwell_stage', stage);
+  }, [stage]);
+
+  useEffect(() => {
+    if (currentBook) {
+      localStorage.setItem('inkwell_current_book_id', currentBook.id);
+    } else {
+      localStorage.removeItem('inkwell_current_book_id');
+    }
+  }, [currentBook]);
+
   const handleStartGeneration = (data: any) => {
     setFormData(data);
     setStage('generating');
@@ -83,13 +121,33 @@ export default function App() {
 
   const handleGenerationComplete = (book: Book) => {
     setCurrentBook(book);
-    setAllBooks(prev => [book, ...prev]);
+    setAllBooks(prev => {
+      const exists = prev.some(b => b.id === book.id);
+      if (exists) {
+        return prev.map(b => b.id === book.id ? book : b);
+      } else {
+        return [book, ...prev];
+      }
+    });
     setStage('reader');
   };
 
   const handleSelectBook = (book: Book) => {
     setCurrentBook(book);
-    setStage('reader');
+    if (book.isIncomplete) {
+      setFormData({
+        description: book.description,
+        genre: book.genre,
+        language: book.language,
+        modelText: book.modelText,
+        modelImage: book.modelImage,
+        volumes: book.volumesCount || 1,
+        pagesPerVolume: book.pagesPerVolume || 5,
+      });
+      setStage('generating');
+    } else {
+      setStage('reader');
+    }
     setIsDrawerOpen(false);
   };
 
@@ -104,7 +162,14 @@ export default function App() {
 
   const updateBook = (book: Book) => {
     setCurrentBook(book);
-    setAllBooks(prev => prev.map(b => b.id === book.id ? book : b));
+    setAllBooks(prev => {
+      const exists = prev.some(b => b.id === book.id);
+      if (exists) {
+        return prev.map(b => b.id === book.id ? book : b);
+      } else {
+        return [book, ...prev];
+      }
+    });
   };
 
   return (
@@ -199,9 +264,17 @@ export default function App() {
                       <div className="flex-1 min-w-0 pr-8">
                         <h3 className="font-bold text-sm truncate">{book.title}</h3>
                         <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{book.description}</p>
-                        <span className="inline-block mt-2 text-[10px] uppercase tracking-widest text-zinc-600 font-bold">
-                          {book.genre}
-                        </span>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold">
+                            {book.genre}
+                          </span>
+                          {book.isIncomplete && (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
+                              <span className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
+                              Incomplete
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <button
                         onClick={(e) => handleDeleteBook(book.id, e)}
@@ -239,6 +312,8 @@ export default function App() {
             {...formData}
             apiKey={effectiveApiKey}
             onComplete={handleGenerationComplete}
+            resumeBook={currentBook}
+            onUpdateProgress={updateBook}
           />
         )}
 
