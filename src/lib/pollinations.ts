@@ -54,8 +54,8 @@ export async function generateOutline(args: {
   volumes: number;
   pagesPerVolume: number;
   apiKey?: string;
-}): Promise<{ title: string; chapters: { number: number; volumeNumber: number; volumeTitle: string; title: string; summary: string }[] }> {
-  const chaptersPerVolume = Math.max(5, Math.round(args.pagesPerVolume / 10));
+}): Promise<{ title: string; chapters: { number: number; volumeNumber: number; volumeTitle: string; title: string; summary: string; targetPages?: number }[] }> {
+  const chaptersPerVolume = Math.max(3, Math.round(args.pagesPerVolume / 15));
   const totalChapters = chaptersPerVolume * args.volumes;
 
   const prompt = `
@@ -68,8 +68,8 @@ Your task is to outline a book series with the following specifications:
 - Language: ${args.language}
 - Number of Volumes: ${args.volumes}
 - Target Pages per Volume: ${args.pagesPerVolume} (about ${args.pagesPerVolume * 250} words)
-- Expected Chapters per Volume: ${chaptersPerVolume} chapters (target 10 pages / ~2500 words per chapter)
-- Total Chapters across all volumes: ${totalChapters} chapters
+- Expected Chapters per Volume: ${chaptersPerVolume} chapters
+- Target Pages per Chapter: Between 12 and 20 pages (about 3000 to 5000 words) depending on chapter story flow.
 
 You MUST return ONLY a valid JSON object with the following structure:
 {
@@ -80,11 +80,14 @@ You MUST return ONLY a valid JSON object with the following structure:
       "volumeNumber": 1,
       "volumeTitle": "Volume 1 Title",
       "title": "Chapter 1 Title",
-      "summary": "Detailed narrative beats and summary of what happens in this chapter."
+      "summary": "Detailed narrative beats and summary of what happens in this chapter.",
+      "targetPages": 15
     }
   ]
 }
 Ensure there are exactly ${totalChapters} chapters, with ${chaptersPerVolume} chapters per volume.
+Each chapter's "targetPages" MUST be an integer between 12 and 20 representing the dynamic page target for that chapter based on the story flow.
+Ensure the sum of "targetPages" of the chapters in each volume is approximately equal to ${args.pagesPerVolume}.
 Output MUST be valid JSON. Ensure there are no markdown backticks at the very start/end of the JSON return if possible, or format it as clean JSON.`;
 
   const raw = await chatCompletion(prompt, args.model, args.apiKey, true);
@@ -135,11 +138,13 @@ export async function draftChapter(args: {
   previousChapterEnding?: string;
   model: string;
   apiKey?: string;
+  targetPages?: number;
 }): Promise<{ content: string; wordCount: number }> {
   let fullContent = "";
   let currentWords = 0;
-  const targetWords = 1500;
-  const maxIterations = 4;
+  const pages = args.targetPages || 15;
+  const targetWords = pages * 250;
+  const maxIterations = Math.ceil(targetWords / 600);
 
   for (let i = 0; i < maxIterations && currentWords < targetWords; i++) {
     const isContinuing = i > 0;
@@ -165,7 +170,8 @@ Please CONTINUE writing this chapter from where you left off, following the chap
     : "Start writing the chapter draft now, based on the beats."
 }
 
-${isContinuing ? "Continue until you reach a natural pause or significant length." : "Write at least 800 words for this segment."}
+This chapter target length is ${pages} pages (about ${targetWords} words total).
+${isContinuing ? "Continue writing the chapter draft." : "Write at least 800 words for this segment."}
 `;
 
     const chunk = await chatCompletion(prompt, args.model, args.apiKey, false);
@@ -213,6 +219,7 @@ export async function generateChapter(args: {
   previousChapterEnding?: string;
   model: string;
   apiKey?: string;
+  targetPages?: number;
 }): Promise<{ content: string; wordCount: number }> {
   // Runs the agentic pipeline
   const beats = await generateChapterBeats(args);

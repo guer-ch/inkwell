@@ -17,7 +17,7 @@ interface BookFormProps {
 
 const GENRES = [
   'Fiction', 'Non-Fiction', 'Sci-Fi', 'Fantasy', 'Romance', 
-  'Thriller', 'Mystery', 'Biography', 'History', 'Horror', 'Poetry'
+  'Thriller', 'Mystery', 'Biography', 'History', 'Horror', 'Poetry', 'Psychological'
 ];
 
 const LANGUAGES = [

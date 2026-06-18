@@ -221,7 +221,8 @@ export function GeneratingStage({
         previousChaptersSummaries: prevSummaries,
         previousChapterEnding: prevChapterEnd,
         model: modelText,
-        apiKey
+        apiKey,
+        targetPages: ch.targetPages
       });
 
       // 3. Humanizing Phase

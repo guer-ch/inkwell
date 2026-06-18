@@ -6,6 +6,7 @@ export interface Chapter {
   summary: string;
   content: string;
   isGenerating?: boolean;
+  targetPages?: number;
 }
 
 export interface Book {
