@@ -148,9 +148,14 @@ export function GeneratingStage({
       }
 
       setCurrentChapterIndex(0);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Failed to start book generation.');
+      const isPaymentRequired = err?.message?.includes('402') || err?.message?.includes('Payment Required');
+      if (isPaymentRequired) {
+        setError('Payment Required (402): Your Pollinations AI key has insufficient funds or quota. Please connect a funded key.');
+      } else {
+        setError('Failed to start book generation.');
+      }
       scheduleRetry(generateBook);
     }
   };
@@ -262,9 +267,14 @@ export function GeneratingStage({
       }
 
       setCurrentChapterIndex(prev => prev + 1);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError(`Failed to generate Chapter ${currentChapterIndex + 1}.`);
+      const isPaymentRequired = err?.message?.includes('402') || err?.message?.includes('Payment Required');
+      if (isPaymentRequired) {
+        setError('Payment Required (402): Your Pollinations AI key has insufficient funds or quota. Please connect a funded key.');
+      } else {
+        setError(`Failed to generate Chapter ${currentChapterIndex + 1}.`);
+      }
       scheduleRetry(generateNextChapter);
     }
   };
