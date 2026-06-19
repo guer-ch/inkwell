@@ -38,12 +38,13 @@ function testSkillsExist() {
 function testChapterCountLogic() {
   console.log('  Running Test 2: Verifying dynamic chapter count logic...');
   
-  const calculateChapters = (pagesPerVolume) => Math.max(5, Math.round(pagesPerVolume / 10));
+  const calculateChapters = (pagesPerVolume) => Math.max(3, Math.round(pagesPerVolume / 13.5));
   
-  assert.strictEqual(calculateChapters(150), 15, '150 pages should produce 15 chapters');
-  assert.strictEqual(calculateChapters(50), 5, '50 pages should produce 5 chapters');
-  assert.strictEqual(calculateChapters(20), 5, '20 pages should produce minimum 5 chapters');
-  assert.strictEqual(calculateChapters(1000), 100, '1000 pages should produce 100 chapters');
+  assert.strictEqual(calculateChapters(150), 11, '150 pages should produce 11 chapters');
+  assert.strictEqual(calculateChapters(50), 4, '50 pages should produce 4 chapters');
+  assert.strictEqual(calculateChapters(40), 3, '40 pages should produce 3 chapters');
+  assert.strictEqual(calculateChapters(20), 3, '20 pages should produce minimum 3 chapters');
+  assert.strictEqual(calculateChapters(1000), 74, '1000 pages should produce 74 chapters');
   
   console.log('    ✓ Chapter count calculations validated successfully.');
 }

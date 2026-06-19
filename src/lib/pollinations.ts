@@ -55,7 +55,7 @@ export async function generateOutline(args: {
   pagesPerVolume: number;
   apiKey?: string;
 }): Promise<{ title: string; chapters: { number: number; volumeNumber: number; volumeTitle: string; title: string; summary: string; targetPages?: number }[] }> {
-  const chaptersPerVolume = Math.max(3, Math.round(args.pagesPerVolume / 15));
+  const chaptersPerVolume = Math.max(3, Math.round(args.pagesPerVolume / 13.5));
   const totalChapters = chaptersPerVolume * args.volumes;
 
   const prompt = `
@@ -69,7 +69,7 @@ Your task is to outline a book series with the following specifications:
 - Number of Volumes: ${args.volumes}
 - Target Pages per Volume: ${args.pagesPerVolume} (about ${args.pagesPerVolume * 250} words)
 - Expected Chapters per Volume: ${chaptersPerVolume} chapters
-- Target Pages per Chapter: Between 12 and 20 pages (about 3000 to 5000 words) depending on chapter story flow.
+- Target Pages per Chapter: Between 11 and 16 pages (about 2750 to 4000 words) depending on chapter story flow.
 
 You MUST return ONLY a valid JSON object with the following structure:
 {
@@ -81,12 +81,12 @@ You MUST return ONLY a valid JSON object with the following structure:
       "volumeTitle": "Volume 1 Title",
       "title": "Chapter 1 Title",
       "summary": "Detailed narrative beats and summary of what happens in this chapter.",
-      "targetPages": 15
+      "targetPages": 13
     }
   ]
 }
 Ensure there are exactly ${totalChapters} chapters, with ${chaptersPerVolume} chapters per volume.
-Each chapter's "targetPages" MUST be an integer between 12 and 20 representing the dynamic page target for that chapter based on the story flow.
+Each chapter's "targetPages" MUST be an integer between 11 and 16 representing the dynamic page target for that chapter based on the story flow.
 Ensure the sum of "targetPages" of the chapters in each volume is approximately equal to ${args.pagesPerVolume}.
 Output MUST be valid JSON. Ensure there are no markdown backticks at the very start/end of the JSON return if possible, or format it as clean JSON.`;
 
@@ -142,7 +142,7 @@ export async function draftChapter(args: {
 }): Promise<{ content: string; wordCount: number }> {
   let fullContent = "";
   let currentWords = 0;
-  const pages = args.targetPages || 15;
+  const pages = args.targetPages || 13;
   const targetWords = pages * 250;
   const maxIterations = Math.ceil(targetWords / 600);
 

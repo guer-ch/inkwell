@@ -16,7 +16,7 @@ This skill governs the outlining phase of book writing. Given a book idea, genre
 
 ## Rules & Constraints
 1. **Dynamic Chapters calculation**:
-   Calculate the number of chapters per volume by targeting roughly 10 pages per chapter. For example, a 150-page volume should have exactly 15 chapters (approx. 2500 words per chapter). Minimum chapters per volume is 5.
+   Calculate the number of chapters per volume by targeting roughly 13.5 pages per chapter. For example, a 150-page volume should have exactly 11 chapters (approx. 2750 to 4000 words per chapter). Minimum chapters per volume is 3.
 2. **Structural Consistency**:
    For multiple volumes, each volume must have a distinct narrative arc (e.g., volume 1: exposition & rising action, volume 2: climax & resolution) while maintaining continuity.
 3. **JSON Output Schema**:
