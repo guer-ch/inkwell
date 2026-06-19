@@ -25,6 +25,10 @@ export default function App() {
 
   const [stage, setStage] = useState<AppStage>(() => {
     const savedStage = localStorage.getItem('inkwell_stage') as AppStage | null;
+    const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
+    if (savedStage === 'generating' && !savedCurrentBookId) {
+      return 'setup';
+    }
     return savedStage || 'setup';
   });
 

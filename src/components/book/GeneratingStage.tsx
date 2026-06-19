@@ -236,14 +236,11 @@ export function GeneratingStage({
       });
 
       retryAttemptRef.current = 0; // reset backoff on success
-      let updatedChapters: Chapter[] = [];
-      setChapters(prev => {
-        updatedChapters = prev.map((c, i) => i === currentChapterIndex
-          ? { ...c, content: refinedContent, isGenerating: false }
-          : c
-        );
-        return updatedChapters;
-      });
+      const updatedChapters = chapters.map((c, i) => i === currentChapterIndex
+        ? { ...c, content: refinedContent, isGenerating: false }
+        : c
+      );
+      setChapters(updatedChapters);
       setChapterPhase(null);
 
       if (onUpdateProgress) {
