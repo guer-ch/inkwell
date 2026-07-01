@@ -23,6 +23,7 @@ export interface Book {
   volumesCount?: number;
   pagesPerVolume?: number;
   isIncomplete?: boolean;
+  authorName?: string;
 }
 
 export type AppStage = 'setup' | 'generating' | 'reader';

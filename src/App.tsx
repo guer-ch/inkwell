@@ -3,12 +3,30 @@ import { BookForm } from './components/book/BookForm';
 import { GeneratingStage } from './components/book/GeneratingStage';
 import { BookReader } from './components/book/BookReader';
 import { AppStage, Book } from './types';
-import { Library, Plus, ChevronRight, BookOpen, Trash2 } from 'lucide-react';
+import { Library, Plus, BookOpen, Trash2, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 // Hardcode your Pollinations public key here
 const POLLINATIONS_PUBLIC_KEY: string = "pk_gf18IFswDRED1XSZ";
+
+const TEXT_MODELS = [
+  { id: 'grok4.3', name: 'Grok 4.3' },
+  { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
+  { id: 'openai-large', name: 'GPT-5.4' },
+  { id: 'kimi-k2.6', name: 'Moonshot Kimi K2.6' },
+  { id: 'claude', name: 'Claude Sonnet 4.6' },
+  { id: 'gpt-5.5', name: 'GPT-5.5' }
+];
+
+const IMAGE_MODELS = [
+  { id: 'zimage', name: 'z-image turbo' },
+  { id: 'grok-imagine', name: 'Grok Imagine' },
+  { id: 'gptimage-large', name: 'GPT Image 1.5' },
+  { id: 'qwen-image', name: 'Qwen image plus' },
+  { id: 'gpt-image-2', name: 'GPT Image 2' },
+  { id: 'nanobanana-2', name: 'NanoBanana 2' }
+];
 
 export default function App() {
   const [allBooks, setAllBooks] = useState<Book[]>(() => {
@@ -47,8 +65,20 @@ export default function App() {
   });
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pollinationsKey, setPollinationsKey] = useState<string>(localStorage.getItem('pollinations_key') || '');
   
+  // Settings States
+  const [authorName, setAuthorName] = useState<string>(() => {
+    return localStorage.getItem('inkwell_author_name') || 'AI Writer';
+  });
+  const [defaultModelText, setDefaultModelText] = useState<string>(() => {
+    return localStorage.getItem('inkwell_model_text') || TEXT_MODELS[0].id;
+  });
+  const [defaultModelImage, setDefaultModelImage] = useState<string>(() => {
+    return localStorage.getItem('inkwell_model_image') || IMAGE_MODELS[0].id;
+  });
+
   const [formData, setFormData] = useState<{
     description: string;
     genre: string;
@@ -57,6 +87,7 @@ export default function App() {
     modelImage: string;
     volumes: number;
     pagesPerVolume: number;
+    authorName: string;
   } | null>(() => {
     const savedStage = localStorage.getItem('inkwell_stage');
     const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
@@ -74,6 +105,7 @@ export default function App() {
             modelImage: book.modelImage,
             volumes: book.volumesCount || 1,
             pagesPerVolume: book.pagesPerVolume || 5,
+            authorName: book.authorName || 'AI Writer',
           };
         }
       } catch (e) {
@@ -136,8 +168,26 @@ export default function App() {
     }
   }, [currentBook]);
 
+  // Persist Settings
+  useEffect(() => {
+    localStorage.setItem('inkwell_author_name', authorName);
+  }, [authorName]);
+
+  useEffect(() => {
+    localStorage.setItem('inkwell_model_text', defaultModelText);
+  }, [defaultModelText]);
+
+  useEffect(() => {
+    localStorage.setItem('inkwell_model_image', defaultModelImage);
+  }, [defaultModelImage]);
+
   const handleStartGeneration = (data: any) => {
-    setFormData(data);
+    setFormData({
+      ...data,
+      modelText: defaultModelText,
+      modelImage: defaultModelImage,
+      authorName: authorName
+    });
     setStage('generating');
   };
 
@@ -165,6 +215,7 @@ export default function App() {
         modelImage: book.modelImage,
         volumes: book.volumesCount || 1,
         pagesPerVolume: book.pagesPerVolume || 5,
+        authorName: book.authorName || 'AI Writer',
       });
       setStage('generating');
     } else {
@@ -196,8 +247,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-blue-500/30">
-      {/* Top Left: Actions */}
-      <div className="fixed top-6 left-6 z-[60] flex gap-3">
+      
+      {/* Top Right: Actions & Branding */}
+      <div className="fixed top-6 right-6 z-[60] flex items-center gap-3">
+        {/* Powered by */}
+        <div className="hidden sm:flex flex-col items-end mr-2">
+          <div className="flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest text-zinc-600">
+            <span>Powered by</span>
+            <a href="https://pollinations.ai" target="_blank" className="text-zinc-500 hover:text-blue-500 transition-colors">Pollinations.ai</a>
+          </div>
+        </div>
+
+        {/* Settings Gear Button */}
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400 hover:text-zinc-200"
+          title="Settings"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+
+        {/* My Library Button */}
         <button
           onClick={() => setIsDrawerOpen(true)}
           className="px-4 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all flex items-center gap-2 group"
@@ -206,19 +276,21 @@ export default function App() {
           <span className="text-sm font-medium">My Library</span>
         </button>
 
-        {stage !== 'setup' && stage !== 'generating' && (
+        {/* Create New Book Button */}
+        {stage !== 'setup' && (
           <button
             onClick={() => {
               setStage('setup');
               setCurrentBook(null);
             }}
-            className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all group"
+            className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400 hover:text-zinc-200"
             title="Create New Book"
           >
             <Plus className="w-5 h-5" />
           </button>
         )}
 
+        {/* Connect Pollen Button */}
         <button
           onClick={handleConnect}
           className={cn(
@@ -233,13 +305,93 @@ export default function App() {
         </button>
       </div>
 
-      {/* Top Right: Branding */}
-      <div className="fixed top-6 right-6 z-[60] flex flex-col items-end gap-1">
-        <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-600">
-          <span>Powered by</span>
-          <a href="https://pollinations.ai" target="_blank" className="text-zinc-500 hover:text-blue-500 transition-colors">Pollinations.ai</a>
-        </div>
-      </div>
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
+              animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
+              exit={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-zinc-900 border border-zinc-800 rounded-3xl p-8 shadow-2xl z-[80]"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Settings className="w-6 h-6 text-blue-500" /> Creator Settings
+                </h2>
+                <button 
+                  onClick={() => setIsSettingsOpen(false)} 
+                  className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Author Name */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-300">Default Author Name</label>
+                  <input
+                    type="text"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    placeholder="Enter author name..."
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none transition-colors text-zinc-200 text-sm font-medium"
+                  />
+                  <span className="text-[10px] text-zinc-500 block">This name will appear on the book cover.</span>
+                </div>
+
+                {/* Text Writer Model */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-300">Writer Model (LLM)</label>
+                  <select
+                    value={defaultModelText}
+                    onChange={(e) => setDefaultModelText(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                  >
+                    {TEXT_MODELS.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-zinc-500 block">The language model responsible for drafting story beats and prose.</span>
+                </div>
+
+                {/* Artist Model */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-300">Artist Model (Diffuser)</label>
+                  <select
+                    value={defaultModelImage}
+                    onChange={(e) => setDefaultModelImage(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                  >
+                    {IMAGE_MODELS.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-zinc-500 block">The image generation model responsible for producing the book cover.</span>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <button
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all text-sm"
+                >
+                  Save & Close
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Library Drawer */}
       <AnimatePresence>
@@ -351,4 +503,3 @@ export default function App() {
     </div>
   );
 }
-

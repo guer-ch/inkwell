@@ -26,13 +26,14 @@ interface GeneratingStageProps {
   onComplete: (book: Book) => void;
   resumeBook?: Book | null;
   onUpdateProgress?: (book: Book) => void;
+  authorName?: string;
 }
 
 const BACKOFF_SCHEDULE = [1, 3, 15, 60, 300];
 
 export function GeneratingStage({ 
   description, genre, language, modelText, modelImage, volumes, pagesPerVolume, apiKey, onComplete,
-  resumeBook, onUpdateProgress
+  resumeBook, onUpdateProgress, authorName
 }: GeneratingStageProps) {
   const [step, setStep] = useState<'outline' | 'cover' | 'chapters'>(
     resumeBook ? 'chapters' : 'outline'
@@ -168,7 +169,8 @@ export function GeneratingStage({
         modelImage,
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
-        isIncomplete: true
+        isIncomplete: true,
+        authorName: authorName || 'AI Writer'
       };
 
       if (onUpdateProgress) {
@@ -208,7 +210,8 @@ export function GeneratingStage({
         modelText,
         modelImage,
         volumesCount: volumes,
-        pagesPerVolume: pagesPerVolume
+        pagesPerVolume: pagesPerVolume,
+        authorName: resumeBook?.authorName || authorName || 'AI Writer'
       };
       onComplete(finalBook);
     }
@@ -310,7 +313,8 @@ export function GeneratingStage({
         modelImage,
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
-        isIncomplete: true
+        isIncomplete: true,
+        authorName: resumeBook?.authorName || authorName || 'AI Writer'
       };
 
       if (onUpdateProgress) {
@@ -368,7 +372,8 @@ export function GeneratingStage({
       modelImage,
       volumesCount: volumes,
       pagesPerVolume: pagesPerVolume,
-      isIncomplete: true
+      isIncomplete: true,
+      authorName: resumeBook?.authorName || authorName || 'AI Writer'
     };
     if (onUpdateProgress) {
       onUpdateProgress(updatedBook);
@@ -422,7 +427,8 @@ export function GeneratingStage({
         modelImage,
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
-        isIncomplete: true
+        isIncomplete: true,
+        authorName: resumeBook?.authorName || authorName || 'AI Writer'
       };
       if (onUpdateProgress) {
         onUpdateProgress(updatedBook);
@@ -648,7 +654,8 @@ export function GeneratingStage({
                   modelText,
                   modelImage,
                   volumesCount: volumes,
-                  pagesPerVolume: pagesPerVolume
+                  pagesPerVolume: pagesPerVolume,
+                  authorName: resumeBook?.authorName || authorName || 'AI Writer'
                 };
                 onComplete(finalBook);
               }}

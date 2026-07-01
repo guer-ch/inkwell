@@ -8,8 +8,6 @@ interface BookFormProps {
     description: string;
     genre: string;
     language: string;
-    modelText: string;
-    modelImage: string;
     volumes: number;
     pagesPerVolume: number;
   }) => void;
@@ -25,30 +23,10 @@ const LANGUAGES = [
   'Japanese', 'Korean', 'Italian', 'Portuguese', 'Russian'
 ];
 
-const TEXT_MODELS = [
-  { id: 'grok4.3', name: 'Grok 4.3' },
-  { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
-  { id: 'openai-large', name: 'GPT-5.4' },
-  { id: 'kimi-k2.6', name: 'Moonshot Kimi K2.6' },
-  { id: 'claude', name: 'Claude Sonnet 4.6' },
-  { id: 'gpt-5.5', name: 'GPT-5.5' }
-];
-
-const IMAGE_MODELS = [
-  { id: 'zimage', name: 'z-image turbo' },
-  { id: 'grok-imagine', name: 'Grok Imagine' },
-  { id: 'gptimage-large', name: 'GPT Image 1.5' },
-  { id: 'qwen-image', name: 'Qwen image plus' },
-  { id: 'gpt-image-2', name: 'GPT Image 2' },
-  { id: 'nanobanana-2', name: 'NanoBanana 2' }
-];
-
 export function BookForm({ onGenerate }: BookFormProps) {
   const [description, setDescription] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([GENRES[0]]);
   const [language, setLanguage] = useState(LANGUAGES[0]);
-  const [modelText, setModelText] = useState(TEXT_MODELS[0].id); // defaults to 'grok'
-  const [modelImage, setModelImage] = useState(IMAGE_MODELS[0].id);
   const [volumes, setVolumes] = useState(1);
   const [pagesPerVolume, setPagesPerVolume] = useState(150);
 
@@ -69,8 +47,6 @@ export function BookForm({ onGenerate }: BookFormProps) {
       description,
       genre: selectedGenres.join(', '),
       language,
-      modelText,
-      modelImage,
       volumes,
       pagesPerVolume
     });
@@ -203,29 +179,6 @@ export function BookForm({ onGenerate }: BookFormProps) {
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <span className="text-[10px] text-zinc-500 block">Target page count (~250 words per page)</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Writer Model</label>
-            <select
-              value={modelText}
-              onChange={(e) => setModelText(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {TEXT_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Artist Model</label>
-            <select
-              value={modelImage}
-              onChange={(e) => setModelImage(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {IMAGE_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
           </div>
         </div>
 

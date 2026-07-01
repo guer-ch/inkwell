@@ -198,7 +198,12 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
               className="text-center mt-8 space-y-2"
             >
               <h1 className="text-5xl font-bold font-serif italic tracking-tight">{book.title}</h1>
-              <p className="text-zinc-500 uppercase tracking-widest text-sm font-sans underline decoration-amber-500/50 underline-offset-8">
+              {book.authorName && (
+                <p className="text-zinc-400 font-sans text-sm font-medium mt-2">
+                  by {book.authorName}
+                </p>
+              )}
+              <p className="text-zinc-500 uppercase tracking-widest text-xs font-sans underline decoration-amber-500/50 underline-offset-8 mt-4 block">
                 {book.genre} • {book.language} 
               </p>
             </motion.div>
