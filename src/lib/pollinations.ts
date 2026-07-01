@@ -46,6 +46,89 @@ async function chatCompletion(
   return JSON.stringify(data);
 }
 
+async function chatCompletionStream(
+  prompt: string,
+  model: string,
+  onChunk: (text: string) => void,
+  apiKey?: string
+): Promise<string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json"
+  };
+  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+  const body = {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    seed: Math.floor(Math.random() * 1000000),
+    stream: true
+  };
+
+  const res = await fetch(TEXT_BASE, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Pollinations text API error ${res.status}: ${text}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body reader available for streaming.");
+  }
+
+  const decoder = new TextDecoder("utf-8");
+  let fullContent = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (!cleanLine) continue;
+      if (cleanLine === "data: [DONE]") continue;
+
+      if (cleanLine.startsWith("data: ")) {
+        try {
+          const json = JSON.parse(cleanLine.slice(6));
+          const chunk = json.choices?.[0]?.delta?.content || "";
+          if (chunk) {
+            fullContent += chunk;
+            onChunk(fullContent);
+          }
+        } catch (e) {
+          // ignore parsing error for incomplete chunks
+        }
+      }
+    }
+  }
+
+  if (buffer) {
+    const cleanLine = buffer.trim();
+    if (cleanLine.startsWith("data: ") && cleanLine !== "data: [DONE]") {
+      try {
+        const json = JSON.parse(cleanLine.slice(6));
+        const chunk = json.choices?.[0]?.delta?.content || "";
+        if (chunk) {
+          fullContent += chunk;
+          onChunk(fullContent);
+        }
+      } catch (e) {}
+    }
+  }
+
+  return fullContent;
+}
+
 export async function generateOutline(args: {
   description: string;
   genre: string;
@@ -126,20 +209,23 @@ Return only the bullet points.
   return chatCompletion(prompt, args.model, args.apiKey, false);
 }
 
-export async function draftChapter(args: {
-  bookDescription: string;
-  genre: string;
-  language: string;
-  chapterNumber: number;
-  chapterTitle: string;
-  chapterSummary: string;
-  chapterBeats: string;
-  previousChaptersSummaries?: string;
-  previousChapterEnding?: string;
-  model: string;
-  apiKey?: string;
-  targetPages?: number;
-}): Promise<{ content: string; wordCount: number }> {
+export async function draftChapter(
+  args: {
+    bookDescription: string;
+    genre: string;
+    language: string;
+    chapterNumber: number;
+    chapterTitle: string;
+    chapterSummary: string;
+    chapterBeats: string;
+    previousChaptersSummaries?: string;
+    previousChapterEnding?: string;
+    model: string;
+    apiKey?: string;
+    targetPages?: number;
+  },
+  onChunk?: (text: string) => void
+): Promise<{ content: string; wordCount: number }> {
   let fullContent = "";
   let currentWords = 0;
   const pages = args.targetPages || 13;
@@ -174,7 +260,16 @@ This chapter target length is ${pages} pages (about ${targetWords} words total).
 ${isContinuing ? "Continue writing the chapter draft." : "Write at least 800 words for this segment."}
 `;
 
-    const chunk = await chatCompletion(prompt, args.model, args.apiKey, false);
+    let chunk = "";
+    if (onChunk) {
+      chunk = await chatCompletionStream(prompt, args.model, (streamedContent) => {
+        const updatedFullContent = fullContent + (isContinuing ? "\n\n" : "") + streamedContent;
+        onChunk(updatedFullContent);
+      }, args.apiKey);
+    } else {
+      chunk = await chatCompletion(prompt, args.model, args.apiKey, false);
+    }
+
     fullContent += (isContinuing ? "\n\n" : "") + chunk;
     currentWords = countWords(fullContent);
     if (chunk.length < 200) break;
@@ -183,13 +278,16 @@ ${isContinuing ? "Continue writing the chapter draft." : "Write at least 800 wor
   return { content: fullContent, wordCount: currentWords };
 }
 
-export async function humanizeChapter(args: {
-  draftContent: string;
-  genre: string;
-  language: string;
-  model: string;
-  apiKey?: string;
-}): Promise<string> {
+export async function humanizeChapter(
+  args: {
+    draftContent: string;
+    genre: string;
+    language: string;
+    model: string;
+    apiKey?: string;
+  },
+  onChunk?: (text: string) => void
+): Promise<string> {
   const prompt = `
 You are the Humanizer and Revision Agent. Use the following humanizing skill rules:
 ${humanizingSkill}
@@ -204,7 +302,54 @@ ${args.draftContent}
 
 Return ONLY the polished, refined chapter prose. Do not include any meta comments or introductory notes.
 `;
-  return chatCompletion(prompt, args.model, args.apiKey, false);
+
+  if (onChunk) {
+    return chatCompletionStream(prompt, args.model, onChunk, args.apiKey);
+  } else {
+    return chatCompletion(prompt, args.model, args.apiKey, false);
+  }
+}
+
+export async function rewriteChapter(
+  args: {
+    bookDescription: string;
+    genre: string;
+    language: string;
+    chapterNumber: number;
+    chapterTitle: string;
+    chapterSummary: string;
+    currentContent: string;
+    instruction: string;
+    model: string;
+    apiKey?: string;
+  },
+  onChunk?: (text: string) => void
+): Promise<string> {
+  const prompt = `
+You are the Drafting and Revision Agent.
+Your task is to REWRITE Chapter ${args.chapterNumber}: ${args.chapterTitle} based on the user's instructions.
+
+Book Description: ${args.bookDescription}
+Genre: ${args.genre}
+Language: ${args.language}
+
+Current Chapter Content:
+----
+${args.currentContent}
+----
+
+User's Rewrite Instruction:
+"${args.instruction}"
+
+Please rewrite the chapter to incorporate the user's instruction. Maintain the style, depth, and tone, but make the requested changes.
+Return ONLY the polished, refined rewritten chapter prose. Do not include any meta comments or introductory notes.
+`;
+
+  if (onChunk) {
+    return chatCompletionStream(prompt, args.model, onChunk, args.apiKey);
+  } else {
+    return chatCompletion(prompt, args.model, args.apiKey, false);
+  }
 }
 
 // Kept for backward compatibility if any component calls the old generateChapter directly
