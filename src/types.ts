@@ -29,5 +29,5 @@ export interface Book {
   volumeIsbns?: string[];
 }
 
-export type AppStage = 'setup' | 'generating' | 'reader';
+export type AppStage = 'setup' | 'generating' | 'reader' | 'settings';
 

@@ -56,7 +56,7 @@ export function BookForm({ onGenerate }: BookFormProps) {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto px-4 py-12"
+      className="max-w-[760px] mx-auto px-4 py-12"
     >
       <div className="text-center mb-10">
         <div className="inline-flex p-3 bg-zinc-900 rounded-2xl mb-4">

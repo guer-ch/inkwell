@@ -47,8 +47,13 @@ export default function App() {
     if (savedStage === 'generating' && !savedCurrentBookId) {
       return 'setup';
     }
+    if (savedStage === 'settings') {
+      return 'setup';
+    }
     return savedStage || 'setup';
   });
+
+  const [previousStage, setPreviousStage] = useState<AppStage>('setup');
 
   const [currentBook, setCurrentBook] = useState<Book | null>(() => {
     const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
@@ -65,7 +70,6 @@ export default function App() {
   });
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [pollinationsKey, setPollinationsKey] = useState<string>(localStorage.getItem('pollinations_key') || '');
   
   // Settings States
@@ -271,8 +275,20 @@ export default function App() {
 
         {/* Settings Gear Button */}
         <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 transition-all text-zinc-400 hover:text-zinc-200"
+          onClick={() => {
+            if (stage === 'settings') {
+              setStage(previousStage);
+            } else {
+              setPreviousStage(stage);
+              setStage('settings');
+            }
+          }}
+          className={cn(
+            "p-2.5 rounded-xl border transition-all",
+            stage === 'settings' 
+              ? "bg-blue-500/10 border-blue-500/50 text-blue-400" 
+              : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+          )}
           title="Settings"
         >
           <Settings className="w-5 h-5" />
@@ -316,109 +332,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* Settings Modal */}
-      <AnimatePresence>
-        {isSettingsOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSettingsOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
-              animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
-              exit={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
-              transition={{ duration: 0.2 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-zinc-900 border border-zinc-800 rounded-3xl p-8 shadow-2xl z-[80]"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Settings className="w-6 h-6 text-blue-500" /> Creator Settings
-                </h2>
-                <button 
-                  onClick={() => setIsSettingsOpen(false)} 
-                  className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {/* Author Name */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-300">Default Author Name</label>
-                  <input
-                    type="text"
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    placeholder="Enter author name..."
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none transition-colors text-zinc-200 text-sm font-medium"
-                  />
-                  <span className="text-[10px] text-zinc-500 block">This name will appear on the book cover.</span>
-                </div>
-
-                {/* Book Format */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-300">Book Format</label>
-                  <select
-                    value={defaultBookFormat}
-                    onChange={(e) => setDefaultBookFormat(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
-                  >
-                    <option value="Standard PDF (A4)">Standard PDF (A4)</option>
-                    <option value="KDP Format (6x9 Trade)">KDP Format (6x9 Trade)</option>
-                    <option value="Google Play Books (5x8 ePUB/Compact)">Google Play Books (5x8 ePUB/Compact)</option>
-                    <option value="ePUB (Markdown Package)">ePUB (Markdown Package)</option>
-                  </select>
-                  <span className="text-[10px] text-zinc-500 block">Determines page sizing and formatting for PDF downloads.</span>
-                </div>
-
-                {/* Text Writer Model */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-300">Writer Model (LLM)</label>
-                  <select
-                    value={defaultModelText}
-                    onChange={(e) => setDefaultModelText(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
-                  >
-                    {TEXT_MODELS.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-zinc-500 block">The language model responsible for drafting story beats and prose.</span>
-                </div>
-
-                {/* Artist Model */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-300">Artist Model (Diffuser)</label>
-                  <select
-                    value={defaultModelImage}
-                    onChange={(e) => setDefaultModelImage(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
-                  >
-                    {IMAGE_MODELS.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-zinc-500 block">The image generation model responsible for producing the book cover.</span>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <button
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all text-sm"
-                >
-                  Save & Close
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Settings Modal removed - now full page */}
 
       {/* Library Drawer */}
       <AnimatePresence>
@@ -525,6 +439,98 @@ export default function App() {
             onBack={() => setStage('setup')}
             onUpdateBook={updateBook}
           />
+        )}
+
+        {stage === 'settings' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-[760px] mx-auto px-6 py-16"
+          >
+            <div className="text-center mb-10">
+              <div className="inline-flex p-3 bg-zinc-900 rounded-2xl mb-4">
+                <Settings className="w-8 h-8 text-blue-500" />
+              </div>
+              <h1 className="text-4xl font-bold tracking-tight mb-2">Creator Settings</h1>
+              <p className="text-zinc-400">Configure default credentials and model parameters for your writing studio.</p>
+            </div>
+
+            <div className="space-y-6 bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-sm">
+              {/* Author Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-300">Default Author Name</label>
+                <input
+                  type="text"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  placeholder="Enter author name..."
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none transition-colors text-zinc-200 text-sm font-medium"
+                />
+                <span className="text-[10px] text-zinc-500 block">This name will appear on the book cover.</span>
+              </div>
+
+              {/* Book Format */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-300">Book Format</label>
+                <select
+                  value={defaultBookFormat}
+                  onChange={(e) => setDefaultBookFormat(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                >
+                  <option value="Standard PDF (A4)">Standard PDF (A4)</option>
+                  <option value="KDP Format (6x9 Trade)">KDP Format (6x9 Trade)</option>
+                  <option value="Google Play Books (5x8 ePUB/Compact)">Google Play Books (5x8 ePUB/Compact)</option>
+                  <option value="ePUB (Markdown Package)">ePUB (Markdown Package)</option>
+                </select>
+                <span className="text-[10px] text-zinc-500 block">Determines page sizing and formatting for PDF downloads.</span>
+              </div>
+
+              {/* Text Writer Model */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-300">Writer Model (LLM)</label>
+                <select
+                  value={defaultModelText}
+                  onChange={(e) => setDefaultModelText(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                >
+                  {TEXT_MODELS.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-zinc-500 block">The language model responsible for drafting story beats and prose.</span>
+              </div>
+
+              {/* Artist Model */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-300">Artist Model (Diffuser)</label>
+                <select
+                  value={defaultModelImage}
+                  onChange={(e) => setDefaultModelImage(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                >
+                  {IMAGE_MODELS.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-zinc-500 block">The image generation model responsible for producing the book cover.</span>
+              </div>
+
+              <div className="mt-8 pt-4 flex gap-4 border-t border-zinc-800">
+                <button
+                  onClick={() => setStage(previousStage)}
+                  className="flex-1 py-3.5 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                >
+                  Save & Close Settings
+                </button>
+                <button
+                  onClick={() => setStage(previousStage)}
+                  className="px-6 py-3.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold rounded-xl transition-all text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </main>
     </div>
