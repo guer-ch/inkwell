@@ -6,7 +6,7 @@ import {
   Wand2, FileText, CheckCircle
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { cn } from '@/src/lib/utils';
+import { cn, generateISBN13 } from '@/src/lib/utils';
 
 import { Chapter, Book } from '@/src/types';
 import { 
@@ -27,13 +27,14 @@ interface GeneratingStageProps {
   resumeBook?: Book | null;
   onUpdateProgress?: (book: Book) => void;
   authorName?: string;
+  bookFormat: string;
 }
 
 const BACKOFF_SCHEDULE = [1, 3, 15, 60, 300];
 
 export function GeneratingStage({ 
   description, genre, language, modelText, modelImage, volumes, pagesPerVolume, apiKey, onComplete,
-  resumeBook, onUpdateProgress, authorName
+  resumeBook, onUpdateProgress, authorName, bookFormat
 }: GeneratingStageProps) {
   const [step, setStep] = useState<'outline' | 'cover' | 'chapters'>(
     resumeBook ? 'chapters' : 'outline'
@@ -41,6 +42,8 @@ export function GeneratingStage({
   const [title, setTitle] = useState(resumeBook?.title || '');
   const [coverUrl, setCoverUrl] = useState(resumeBook?.coverUrl || '');
   const [chapters, setChapters] = useState<Chapter[]>(resumeBook?.chapters || []);
+  const [isbn, setIsbn] = useState<string>(resumeBook?.isbn || '');
+  const [volumeIsbns, setVolumeIsbns] = useState<string[]>(resumeBook?.volumeIsbns || []);
   
   const getInitialChapterIndex = () => {
     if (!resumeBook) return -1;
@@ -156,6 +159,13 @@ export function GeneratingStage({
       setCoverUrl(cover.imageUrl);
       setStep('chapters');
 
+      const isbns: string[] = [];
+      for (let i = 0; i < volumes; i++) {
+        isbns.push(generateISBN13());
+      }
+      setIsbn(isbns[0]);
+      setVolumeIsbns(isbns);
+
       const initialBook: Book = {
         id: bookIdRef.current,
         title: outline.title,
@@ -170,7 +180,10 @@ export function GeneratingStage({
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
         isIncomplete: true,
-        authorName: authorName || 'AI Writer'
+        authorName: authorName || 'AI Writer',
+        bookFormat: bookFormat || 'Standard PDF (A4)',
+        isbn: isbns[0],
+        volumeIsbns: isbns
       };
 
       if (onUpdateProgress) {
@@ -211,7 +224,10 @@ export function GeneratingStage({
         modelImage,
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
-        authorName: resumeBook?.authorName || authorName || 'AI Writer'
+        authorName: resumeBook?.authorName || authorName || 'AI Writer',
+        bookFormat: resumeBook?.bookFormat || bookFormat || 'Standard PDF (A4)',
+        isbn,
+        volumeIsbns
       };
       onComplete(finalBook);
     }
@@ -373,7 +389,10 @@ export function GeneratingStage({
       volumesCount: volumes,
       pagesPerVolume: pagesPerVolume,
       isIncomplete: true,
-      authorName: resumeBook?.authorName || authorName || 'AI Writer'
+      authorName: resumeBook?.authorName || authorName || 'AI Writer',
+      bookFormat: resumeBook?.bookFormat || bookFormat || 'Standard PDF (A4)',
+      isbn,
+      volumeIsbns
     };
     if (onUpdateProgress) {
       onUpdateProgress(updatedBook);
@@ -428,7 +447,10 @@ export function GeneratingStage({
         volumesCount: volumes,
         pagesPerVolume: pagesPerVolume,
         isIncomplete: true,
-        authorName: resumeBook?.authorName || authorName || 'AI Writer'
+        authorName: resumeBook?.authorName || authorName || 'AI Writer',
+        bookFormat: resumeBook?.bookFormat || bookFormat || 'Standard PDF (A4)',
+        isbn,
+        volumeIsbns
       };
       if (onUpdateProgress) {
         onUpdateProgress(updatedBook);
@@ -655,7 +677,10 @@ export function GeneratingStage({
                   modelImage,
                   volumesCount: volumes,
                   pagesPerVolume: pagesPerVolume,
-                  authorName: resumeBook?.authorName || authorName || 'AI Writer'
+                  authorName: resumeBook?.authorName || authorName || 'AI Writer',
+                  bookFormat: resumeBook?.bookFormat || bookFormat || 'Standard PDF (A4)',
+                  isbn,
+                  volumeIsbns
                 };
                 onComplete(finalBook);
               }}

@@ -203,6 +203,11 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
                   by {book.authorName}
                 </p>
               )}
+              {book.isbn && (
+                <p className="text-zinc-500 font-mono text-xs mt-1">
+                  ISBN: {book.isbn}
+                </p>
+              )}
               <p className="text-zinc-500 uppercase tracking-widest text-xs font-sans underline decoration-amber-500/50 underline-offset-8 mt-4 block">
                 {book.genre} • {book.language} 
               </p>
@@ -288,6 +293,29 @@ export function BookReader({ book, apiKey, onBack, onUpdateBook }: BookReaderPro
                 <span className="text-[10px] text-zinc-500 block">Created</span>
                 <p className="text-xs text-zinc-400 mt-1">{new Date(book.createdAt).toLocaleDateString()}</p>
               </div>
+              {book.bookFormat && (
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">Format</span>
+                  <p className="text-xs text-zinc-400 mt-1">{book.bookFormat}</p>
+                </div>
+              )}
+              {book.volumeIsbns && book.volumeIsbns.length > 1 ? (
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">Volume ISBNs</span>
+                  <div className="space-y-1 mt-1 font-mono text-[11px]">
+                    {book.volumeIsbns.map((isbnStr, index) => (
+                      <div key={index} className="text-zinc-400">
+                        Vol {index + 1}: <span className="text-zinc-300 font-semibold">{isbnStr}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : book.isbn ? (
+                <div>
+                  <span className="text-[10px] text-zinc-500 block">ISBN</span>
+                  <p className="text-xs text-zinc-300 font-mono font-semibold mt-1">{book.isbn}</p>
+                </div>
+              ) : null}
            </div>
         </div>
       </aside>

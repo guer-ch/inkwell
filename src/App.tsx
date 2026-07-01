@@ -78,6 +78,9 @@ export default function App() {
   const [defaultModelImage, setDefaultModelImage] = useState<string>(() => {
     return localStorage.getItem('inkwell_model_image') || IMAGE_MODELS[0].id;
   });
+  const [defaultBookFormat, setDefaultBookFormat] = useState<string>(() => {
+    return localStorage.getItem('inkwell_book_format') || 'Standard PDF (A4)';
+  });
 
   const [formData, setFormData] = useState<{
     description: string;
@@ -88,6 +91,7 @@ export default function App() {
     volumes: number;
     pagesPerVolume: number;
     authorName: string;
+    bookFormat: string;
   } | null>(() => {
     const savedStage = localStorage.getItem('inkwell_stage');
     const savedCurrentBookId = localStorage.getItem('inkwell_current_book_id');
@@ -106,6 +110,7 @@ export default function App() {
             volumes: book.volumesCount || 1,
             pagesPerVolume: book.pagesPerVolume || 5,
             authorName: book.authorName || 'AI Writer',
+            bookFormat: book.bookFormat || 'Standard PDF (A4)',
           };
         }
       } catch (e) {
@@ -181,12 +186,17 @@ export default function App() {
     localStorage.setItem('inkwell_model_image', defaultModelImage);
   }, [defaultModelImage]);
 
+  useEffect(() => {
+    localStorage.setItem('inkwell_book_format', defaultBookFormat);
+  }, [defaultBookFormat]);
+
   const handleStartGeneration = (data: any) => {
     setFormData({
       ...data,
       modelText: defaultModelText,
       modelImage: defaultModelImage,
-      authorName: authorName
+      authorName: authorName,
+      bookFormat: defaultBookFormat
     });
     setStage('generating');
   };
@@ -216,6 +226,7 @@ export default function App() {
         volumes: book.volumesCount || 1,
         pagesPerVolume: book.pagesPerVolume || 5,
         authorName: book.authorName || 'AI Writer',
+        bookFormat: book.bookFormat || 'Standard PDF (A4)',
       });
       setStage('generating');
     } else {
@@ -347,6 +358,22 @@ export default function App() {
                     className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none transition-colors text-zinc-200 text-sm font-medium"
                   />
                   <span className="text-[10px] text-zinc-500 block">This name will appear on the book cover.</span>
+                </div>
+
+                {/* Book Format */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-300">Book Format</label>
+                  <select
+                    value={defaultBookFormat}
+                    onChange={(e) => setDefaultBookFormat(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-blue-500 rounded-xl p-3 focus:outline-none text-zinc-200 text-sm font-medium"
+                  >
+                    <option value="Standard PDF (A4)">Standard PDF (A4)</option>
+                    <option value="KDP Format (6x9 Trade)">KDP Format (6x9 Trade)</option>
+                    <option value="Google Play Books (5x8 ePUB/Compact)">Google Play Books (5x8 ePUB/Compact)</option>
+                    <option value="ePUB (Markdown Package)">ePUB (Markdown Package)</option>
+                  </select>
+                  <span className="text-[10px] text-zinc-500 block">Determines page sizing and formatting for PDF downloads.</span>
                 </div>
 
                 {/* Text Writer Model */}

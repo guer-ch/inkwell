@@ -3,17 +3,42 @@ import { jsPDF } from "jspdf";
 import type { Book } from "@/src/types";
 
 export async function exportBookAsPDF(book: Book) {
-  const doc = new jsPDF();
+  let pdfFormat: string | [number, number] = 'a4';
+  let margin = 20;
+
+  if (book.bookFormat === 'KDP Format (6x9 Trade)') {
+    pdfFormat = [152.4, 228.6]; // 6" x 9" in mm
+    margin = 15;
+  } else if (book.bookFormat === 'Google Play Books (5x8 ePUB/Compact)') {
+    pdfFormat = [127, 203.2]; // 5" x 8" in mm
+    margin = 12;
+  }
+
+  const doc = new jsPDF({
+    format: pdfFormat,
+    unit: 'mm'
+  });
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
 
   // Title page
   doc.setFont("times", "bold");
-  doc.setFontSize(30);
-  doc.text(book.title, pageWidth / 2, 100, { align: "center" });
-  doc.setFontSize(18);
-  doc.text("By AI Author", pageWidth / 2, 120, { align: "center" });
+  doc.setFontSize(28);
+  doc.text(book.title, pageWidth / 2, pageHeight / 2 - 30, { align: "center" });
+  doc.setFontSize(16);
+  doc.text(`By ${book.authorName || "AI Writer"}`, pageWidth / 2, pageHeight / 2 - 12, { align: "center" });
+
+  doc.setFont("times", "normal");
+  doc.setFontSize(9);
+  let coverY = pageHeight / 2 + 10;
+  if (book.bookFormat) {
+    doc.text(`Format: ${book.bookFormat}`, pageWidth / 2, coverY, { align: "center" });
+    coverY += 6;
+  }
+  if (book.isbn) {
+    doc.text(`ISBN: ${book.isbn}`, pageWidth / 2, coverY, { align: "center" });
+  }
 
   // Group chapters by volume
   const chaptersByVolume: { [key: number]: { title: string; chapters: typeof book.chapters } } = {};
@@ -31,17 +56,17 @@ export async function exportBookAsPDF(book: Book) {
   // Table of contents
   doc.addPage();
   doc.setFont("times", "bold");
-  doc.setFontSize(20);
-  doc.text("Table of Contents", margin, 30);
+  doc.setFontSize(18);
+  doc.text("Table of Contents", margin, margin + 10);
   doc.setFont("times", "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
 
-  let tocY = 45;
+  let tocY = margin + 25;
   Object.entries(chaptersByVolume).forEach(([volNumStr, volData]) => {
     if (hasMultipleVolumes) {
       if (tocY > pageHeight - 30) {
         doc.addPage();
-        tocY = 30;
+        tocY = margin;
       }
       doc.setFont("times", "bold");
       doc.text(volData.title, margin, tocY);
@@ -51,9 +76,9 @@ export async function exportBookAsPDF(book: Book) {
     volData.chapters.forEach(ch => {
       if (tocY > pageHeight - 20) {
         doc.addPage();
-        tocY = 30;
+        tocY = margin;
       }
-      doc.text(`Chapter ${ch.number}: ${ch.title}`, margin + 5, tocY);
+      doc.text(`Chapter ${ch.number}: ${ch.title}`, margin + 4, tocY);
       tocY += 7;
     });
     tocY += 5; // extra spacing between volumes
@@ -67,40 +92,46 @@ export async function exportBookAsPDF(book: Book) {
     if (hasMultipleVolumes) {
       doc.addPage();
       doc.setFont("times", "bold");
-      doc.setFontSize(24);
-      doc.text(`Volume ${volNum}`, pageWidth / 2, 100, { align: "center" });
-      doc.setFontSize(16);
-      doc.text(volData.title, pageWidth / 2, 115, { align: "center" });
+      doc.setFontSize(22);
+      doc.text(`Volume ${volNum}`, pageWidth / 2, pageHeight / 2 - 20, { align: "center" });
+      doc.setFontSize(14);
+      doc.text(volData.title, pageWidth / 2, pageHeight / 2 - 5, { align: "center" });
+
+      if (book.volumeIsbns && book.volumeIsbns[volNum - 1]) {
+        doc.setFont("times", "normal");
+        doc.setFontSize(9);
+        doc.text(`ISBN: ${book.volumeIsbns[volNum - 1]}`, pageWidth / 2, pageHeight / 2 + 15, { align: "center" });
+      }
     }
 
     volData.chapters.forEach(ch => {
       doc.addPage();
       doc.setFont("times", "bold");
-      doc.setFontSize(22);
+      doc.setFontSize(18);
       
       // Print Volume title at the top of the page if it exists
       if (ch.volumeTitle) {
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont("times", "italic");
-        doc.text(ch.volumeTitle, margin, 20);
+        doc.text(ch.volumeTitle, margin, margin);
         doc.setFont("times", "bold");
-        doc.setFontSize(22);
+        doc.setFontSize(18);
       }
       
-      doc.text(`Chapter ${ch.number}: ${ch.title}`, margin, 35);
+      doc.text(`Chapter ${ch.number}: ${ch.title}`, margin, margin + 15);
 
       doc.setFont("times", "normal");
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       const lines: string[] = doc.splitTextToSize(ch.content || "", pageWidth - margin * 2);
 
-      let y = 50;
+      let y = margin + 28;
       lines.forEach(line => {
         if (y > pageHeight - margin) {
           doc.addPage();
           y = margin;
         }
         doc.text(line, margin, y);
-        y += 6;
+        y += 5.5;
       });
     });
   });

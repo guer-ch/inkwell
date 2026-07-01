@@ -24,6 +24,9 @@ export interface Book {
   pagesPerVolume?: number;
   isIncomplete?: boolean;
   authorName?: string;
+  bookFormat?: string;
+  isbn?: string;
+  volumeIsbns?: string[];
 }
 
 export type AppStage = 'setup' | 'generating' | 'reader';
